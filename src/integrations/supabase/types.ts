@@ -40,27 +40,27 @@ export type Database = {
       }
       comments: {
         Row: {
+          comment_text: string
           created_at: string | null
           id: string
           issue_id: string
           language: Database["public"]["Enums"]["language_code"] | null
-          text: string
           user_id: string
         }
         Insert: {
+          comment_text: string
           created_at?: string | null
           id?: string
           issue_id: string
           language?: Database["public"]["Enums"]["language_code"] | null
-          text: string
           user_id: string
         }
         Update: {
+          comment_text?: string
           created_at?: string | null
           id?: string
           issue_id?: string
           language?: Database["public"]["Enums"]["language_code"] | null
-          text?: string
           user_id?: string
         }
         Relationships: [
@@ -527,18 +527,21 @@ export type Database = {
           id: string
           issue_id: string
           user_id: string
+          vote_type: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           issue_id: string
           user_id: string
+          vote_type?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           issue_id?: string
           user_id?: string
+          vote_type?: string | null
         }
         Relationships: [
           {
