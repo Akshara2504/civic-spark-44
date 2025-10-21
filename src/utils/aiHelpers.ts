@@ -1,45 +1,42 @@
-// AI Helper functions - Placeholders for real AI services
+import { supabase } from '@/integrations/supabase/client';
+
+// AI Helper functions using Lovable AI Gateway
 
 /**
- * TODO: Connect to real AI text summarization service
- * Options: OpenAI GPT, Google Gemini, or other LLM
+ * Generate summary using Lovable AI
  */
 export const generateSummary = async (text: string): Promise<string> => {
-  // Placeholder: Return first 150 characters as summary
-  if (text.length <= 150) return text;
-  return text.substring(0, 150) + '...';
-  
-  // TODO: Implement real AI summarization
-  // Example with OpenAI:
-  // const response = await openai.chat.completions.create({
-  //   model: \"gpt-4\",
-  //   messages: [{ role: \"user\", content: `Summarize: ${text}` }]
-  // });
-  // return response.choices[0].message.content;
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-summarize-text', {
+      body: { text }
+    });
+
+    if (error) throw error;
+    return data.summary;
+  } catch (error) {
+    console.error('Summary generation error:', error);
+    // Fallback to simple truncation
+    if (text.length <= 150) return text;
+    return text.substring(0, 150) + '...';
+  }
 };
 
 /**
- * TODO: Connect to image classification service
- * Options: TensorFlow.js (client-side), Google Cloud Vision API, or custom model
+ * Classify image using AI (placeholder for now)
  */
 export const classifyImage = async (imageFile: File): Promise<{
   category: string;
   confidence: number;
 }> => {
-  // Placeholder: Return random category
+  // For now, use text-based classification
+  // In future, can use Lovable AI with vision models
   const categories = ['Roads', 'Water', 'Electricity', 'Sanitation', 'Safety'];
   const randomCategory = categories[Math.floor(Math.random() * categories.length)];
   
   return {
     category: randomCategory,
-    confidence: 0.75 + Math.random() * 0.2, // Random confidence 0.75-0.95
+    confidence: 0.75 + Math.random() * 0.2,
   };
-  
-  // TODO: Implement real image classification
-  // Example with TensorFlow.js:
-  // const model = await mobilenet.load();
-  // const predictions = await model.classify(imageElement);
-  // return { category: predictions[0].className, confidence: predictions[0].probability };
 };
 
 /**
@@ -85,34 +82,42 @@ export const generateImageCaption = async (imageFile: File): Promise<string> => 
 };
 
 /**
- * Combine text and image classification for better categorization
+ * Combine text and AI classification for better categorization
  */
 export const categorizeIssue = async (
   title: string,
   description: string,
   images: File[]
 ): Promise<{ category: string; confidence: number }> => {
-  // If images available, use image classification
-  if (images.length > 0) {
-    return await classifyImage(images[0]);
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-categorize-issue', {
+      body: { 
+        title, 
+        description,
+        imageUrls: [] // Images already uploaded, can add URLs if needed
+      }
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('AI categorization error:', error);
+    
+    // Fallback to keyword-based classification
+    const text = `${title} ${description}`.toLowerCase();
+    
+    if (text.includes('road') || text.includes('pothole') || text.includes('traffic')) {
+      return { category: 'Roads', confidence: 0.8 };
+    } else if (text.includes('water') || text.includes('drainage') || text.includes('leak')) {
+      return { category: 'Water', confidence: 0.8 };
+    } else if (text.includes('electric') || text.includes('power') || text.includes('light')) {
+      return { category: 'Electricity', confidence: 0.8 };
+    } else if (text.includes('garbage') || text.includes('sanitation') || text.includes('waste')) {
+      return { category: 'Sanitation', confidence: 0.8 };
+    } else if (text.includes('safety') || text.includes('crime') || text.includes('security')) {
+      return { category: 'Safety', confidence: 0.8 };
+    }
+    
+    return { category: 'Other', confidence: 0.5 };
   }
-  
-  // Otherwise, use text-based classification (placeholder)
-  const text = `${title} ${description}`.toLowerCase();
-  
-  if (text.includes('road') || text.includes('pothole') || text.includes('traffic')) {
-    return { category: 'Roads', confidence: 0.8 };
-  } else if (text.includes('water') || text.includes('drainage') || text.includes('leak')) {
-    return { category: 'Water', confidence: 0.8 };
-  } else if (text.includes('electric') || text.includes('power') || text.includes('light')) {
-    return { category: 'Electricity', confidence: 0.8 };
-  } else if (text.includes('garbage') || text.includes('sanitation') || text.includes('waste')) {
-    return { category: 'Sanitation', confidence: 0.8 };
-  } else if (text.includes('safety') || text.includes('crime') || text.includes('security')) {
-    return { category: 'Safety', confidence: 0.8 };
-  }
-  
-  return { category: 'Other', confidence: 0.5 };
-  
-  // TODO: Implement real text+image ensemble classification
 };
