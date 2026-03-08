@@ -5,7 +5,8 @@ import { ArrowRight, MessageSquare, Users, TrendingUp, Shield, Zap, MapPin } fro
 import { useAuth } from '@/contexts/AuthContext';
 
 const Home = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAuthority = profile?.role && profile.role !== 'Citizen';
 
   const features = [
     {
