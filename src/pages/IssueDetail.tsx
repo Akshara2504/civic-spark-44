@@ -269,10 +269,10 @@ const IssueDetail = () => {
                   <Calendar className="w-4 h-4" />
                   {new Date(issue.created_at).toLocaleDateString()}
                 </span>
-                {issue.location_description && (
+              {issue.location_address && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {issue.location_description}
+                    {issue.location_address}
                   </span>
                 )}
               </div>
