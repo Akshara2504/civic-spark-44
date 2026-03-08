@@ -12,6 +12,12 @@ import Feed from "./pages/Feed";
 import Report from "./pages/Report";
 import About from "./pages/About";
 import IssueDetail from "./pages/IssueDetail";
+import Dashboard from "./pages/Dashboard";
+import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import SOS from "./pages/SOS";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +38,12 @@ const App = () => (
                 <Route path="/feed" element={<Feed />} />
                 <Route path="/report" element={<Report />} />
                 <Route path="/issue/:id" element={<IssueDetail />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/executive-dashboard" element={<ExecutiveDashboard />} />
+                <Route path="/sos" element={<SOS />} />
+                <Route path="/profile/:id" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/about" element={<About />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

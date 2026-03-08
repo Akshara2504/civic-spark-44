@@ -253,7 +253,7 @@ const IssueDetail = () => {
               <div className="flex items-center gap-2 mb-2">
                 <Badge className={getStatusColor(issue.status)}>
                   {getStatusIcon(issue.status)}
-                  <span className="ml-1 capitalize">{issue.status.replace('_', ' ')}</span>
+                  <span className="ml-1">{issue.status}</span>
                 </Badge>
                 <Badge variant="outline">{issue.categories?.name}</Badge>
                 {issue.sos_flag && (
