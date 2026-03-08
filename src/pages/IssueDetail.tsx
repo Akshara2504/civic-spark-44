@@ -7,10 +7,12 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, MapPin, Calendar, ThumbsUp, ThumbsDown, 
-  MessageCircle, AlertTriangle, CheckCircle, Clock 
+  MessageCircle, AlertTriangle, CheckCircle, Clock,
+  ShieldAlert, Flame, Users, Timer, Zap
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
