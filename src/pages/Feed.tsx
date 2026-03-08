@@ -178,9 +178,20 @@ const Feed = () => {
                       </div>
 
                       <h3 className="font-semibold text-lg mb-1 line-clamp-1">{issue.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                         {issue.summary || issue.description}
                       </p>
+                      {issue.severity_score != null && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                            issue.severity_score >= 7 ? 'bg-destructive/20 text-destructive' 
+                            : issue.severity_score >= 5 ? 'bg-yellow-500/20 text-yellow-700' 
+                            : 'bg-green-500/20 text-green-700'
+                          }`}>
+                            Severity: {issue.severity_score}/10
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <div className="flex items-center gap-3">

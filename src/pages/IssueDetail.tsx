@@ -321,6 +321,94 @@ const IssueDetail = () => {
             <p className="text-muted-foreground whitespace-pre-wrap">{issue.description}</p>
           </div>
 
+          {/* AI Emergency Analysis Panel */}
+          {(issue.severity_score !== null || issue.sos_flag) && (
+            <div className={`mb-6 rounded-xl border-2 p-5 ${
+              issue.sos_flag 
+                ? 'border-destructive/60 bg-destructive/5' 
+                : issue.severity_score >= 5 
+                  ? 'border-yellow-500/40 bg-yellow-500/5' 
+                  : 'border-border bg-muted/30'
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                {issue.sos_flag ? (
+                  <ShieldAlert className="w-5 h-5 text-destructive" />
+                ) : (
+                  <Zap className="w-5 h-5 text-primary" />
+                )}
+                <h3 className="font-semibold text-lg">
+                  {issue.sos_flag ? '🚨 AI Emergency Detection — SOS FLAGGED' : 'AI Severity Analysis'}
+                </h3>
+              </div>
+
+              {/* Severity Score Bar */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-medium">Severity Score</span>
+                  <span className={`text-2xl font-bold ${
+                    (issue.severity_score || 0) >= 7 ? 'text-destructive' 
+                    : (issue.severity_score || 0) >= 5 ? 'text-yellow-600' 
+                    : 'text-green-600'
+                  }`}>
+                    {issue.severity_score || 0}/10
+                  </span>
+                </div>
+                <Progress 
+                  value={(issue.severity_score || 0) * 10} 
+                  className={`h-3 ${
+                    (issue.severity_score || 0) >= 7 ? '[&>div]:bg-destructive' 
+                    : (issue.severity_score || 0) >= 5 ? '[&>div]:bg-yellow-500' 
+                    : '[&>div]:bg-green-500'
+                  }`}
+                />
+              </div>
+
+              {/* Priority & Info Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Priority</p>
+                    <p className="text-sm font-semibold capitalize">
+                      {issue.sos_flag ? 'Critical' : (issue.severity_score || 0) >= 5 ? 'High' : 'Normal'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
+                  <Timer className="w-4 h-4 text-blue-500" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Time Sensitivity</p>
+                    <p className="text-sm font-semibold capitalize">
+                      {(issue.severity_score || 0) >= 7 ? 'Critical' : (issue.severity_score || 0) >= 5 ? 'High' : 'Medium'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
+                  <Users className="w-4 h-4 text-purple-500" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Impact</p>
+                    <p className="text-sm font-semibold capitalize">
+                      {(issue.severity_score || 0) >= 7 ? 'Many' : (issue.severity_score || 0) >= 5 ? 'Moderate' : 'Few'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase">Escalation</p>
+                    <p className="text-sm font-semibold">Level {issue.escalation_level || 1}</p>
+                  </div>
+                </div>
+              </div>
+
+              {issue.sos_flag && (
+                <p className="text-sm text-destructive font-medium mt-2">
+                  ⚡ This issue has been automatically flagged as an emergency by AI and prioritized for immediate attention by authorities.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* AI Summary */}
           {issue.summary && (
             <div className="mb-6 p-4 bg-accent/50 rounded-lg">
@@ -335,7 +423,7 @@ const IssueDetail = () => {
               <MessageCircle className="w-4 h-4" />
               {comments.length} Comments
             </span>
-            <span>Severity: {issue.severity_score}/100</span>
+            <span>Severity: {issue.severity_score || 0}/10</span>
             <span>Validations: {issue.validations_count || 0}</span>
           </div>
         </Card>

@@ -186,7 +186,9 @@ const Dashboard = () => {
           <div className="space-y-4">
             {issues.map((issue, i) => (
               <motion.div key={issue.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="glass-card glass-card-dark hover:shadow-lg transition-shadow">
+                <Card className={`glass-card glass-card-dark hover:shadow-lg transition-shadow ${
+                  issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
+                }`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
