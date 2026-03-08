@@ -29,6 +29,7 @@ const Report = () => {
   const [categoryId, setCategoryId] = useState('');
   const [predictedCategory, setPredictedCategory] = useState('');
   const [predictedConfidence, setPredictedConfidence] = useState<number | null>(null);
+  const [predictedReasoning, setPredictedReasoning] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
@@ -94,10 +95,10 @@ const Report = () => {
       const result = await categorizeIssue(title, description, images);
       setPredictedCategory(result.category);
       setPredictedConfidence(result.confidence);
-      if (result.confidence > 0.7) {
-        const category = categories.find(c => c.name === result.category);
-        if (category) setCategoryId(category.id);
-      }
+      setPredictedReasoning(result.reasoning || '');
+      // Auto-select the category if confidence is decent
+      const category = categories.find(c => c.name === result.category);
+      if (category) setCategoryId(category.id);
       toast.success(`AI suggests: ${result.category} (${(result.confidence * 100).toFixed(0)}% confident)`);
     } catch {
       toast.error('AI categorization failed');
@@ -376,8 +377,9 @@ const Report = () => {
                     </Button>
                   </div>
                   {predictedCategory && predictedConfidence && (
-                    <div className="mb-2 p-2 bg-primary/10 rounded-lg text-sm">
-                      AI suggests: <strong>{predictedCategory}</strong> ({(predictedConfidence * 100).toFixed(0)}% confidence)
+                    <div className="mb-2 p-3 bg-primary/10 rounded-lg text-sm border border-primary/20">
+                      <p>AI suggests: <strong>{predictedCategory}</strong> ({(predictedConfidence * 100).toFixed(0)}% confidence)</p>
+                      {predictedReasoning && <p className="text-xs text-muted-foreground mt-1">{predictedReasoning}</p>}
                     </div>
                   )}
                   <Select value={categoryId} onValueChange={setCategoryId}>

@@ -88,13 +88,20 @@ export const categorizeIssue = async (
   title: string,
   description: string,
   images: File[]
-): Promise<{ category: string; confidence: number }> => {
+): Promise<{ category: string; confidence: number; reasoning?: string }> => {
   try {
+    // Convert images to base64 data URIs for the vision model
+    const imageBase64List: string[] = [];
+    for (const img of images.slice(0, 3)) { // Max 3 images to keep payload manageable
+      const base64 = await fileToBase64(img);
+      imageBase64List.push(base64);
+    }
+
     const { data, error } = await supabase.functions.invoke('ai-categorize-issue', {
       body: { 
         title, 
         description,
-        imageUrls: [] // Images already uploaded, can add URLs if needed
+        imageBase64List
       }
     });
 
@@ -124,4 +131,13 @@ export const categorizeIssue = async (
     
     return { category: 'Other', confidence: 0.5 };
   }
+};
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };
