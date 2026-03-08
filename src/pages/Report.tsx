@@ -95,10 +95,10 @@ const Report = () => {
       const result = await categorizeIssue(title, description, images);
       setPredictedCategory(result.category);
       setPredictedConfidence(result.confidence);
-      if (result.confidence > 0.7) {
-        const category = categories.find(c => c.name === result.category);
-        if (category) setCategoryId(category.id);
-      }
+      setPredictedReasoning(result.reasoning || '');
+      // Auto-select the category if confidence is decent
+      const category = categories.find(c => c.name === result.category);
+      if (category) setCategoryId(category.id);
       toast.success(`AI suggests: ${result.category} (${(result.confidence * 100).toFixed(0)}% confident)`);
     } catch {
       toast.error('AI categorization failed');
