@@ -18,62 +18,31 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `You are a STRICT and CONSERVATIVE AI emergency detection system for a civic issue reporting platform. Your job is to realistically assess severity. MOST issues are NOT emergencies.
+    const prompt = `Analyze this civic issue report and assess its severity CONSERVATIVELY.
 
-ISSUE DETAILS:
+ISSUE:
 - Title: ${title || 'Not provided'}
 - Description: ${description || 'Not provided'}
 - Location: ${locationAddress || 'Not provided'}
 - Coordinates: ${locationLat && locationLng ? `${locationLat}, ${locationLng}` : 'Not provided'}
-- Number of images attached: ${mediaUrls?.length || 0}
+- Images attached: ${mediaUrls?.length || 0}
 
-SEVERITY CALIBRATION (follow these examples strictly):
-- Pothole on road → severity 2-3, NOT SOS
-- Broken streetlight → severity 2, NOT SOS
-- Garbage not collected → severity 2-3, NOT SOS
-- Water leakage from pipe → severity 3-4, NOT SOS
-- Drainage blocked → severity 3-4, NOT SOS
-- Road damage / cracks → severity 2-3, NOT SOS
-- Stray animal nuisance → severity 2, NOT SOS
-- Noise complaint → severity 1-2, NOT SOS
-- Park maintenance needed → severity 1-2, NOT SOS
-- Traffic signal not working → severity 4-5, NOT SOS
-- Minor flooding in street → severity 4-5, NOT SOS
-- Large sinkhole on busy road → severity 6-7, MAYBE SOS
-- Gas leak detected → severity 8-9, SOS
-- Building collapse / structural failure → severity 9-10, SOS
-- Live exposed electrical wires in public → severity 8-9, SOS
-- Major water contamination → severity 8-9, SOS
-- Fire in residential area → severity 9-10, SOS
-- Bridge structural damage → severity 7-8, SOS
+MANDATORY SEVERITY SCALE - follow EXACTLY:
+- severity_score 1-2: Minor inconvenience (noise, park maintenance, minor litter)
+- severity_score 2-3: Routine civic issue (potholes, garbage not collected, broken streetlight, stray animals, graffiti)
+- severity_score 3-4: Moderate issue (water pipe leak, blocked drain, damaged road, broken traffic sign)
+- severity_score 4-5: Significant issue (traffic signal failure, minor flooding, large road damage)
+- severity_score 5-6: Serious issue (sewage overflow, major road hazard, water supply disruption)
+- severity_score 7-8: Emergency (exposed live wires in public area, gas leak, bridge damage, toxic spill)
+- severity_score 9-10: Critical emergency (building collapse, fire, major structural failure with people at risk)
 
-RULES:
-1. Default severity should be 2-4 for routine civic issues
-2. Only rate severity >= 7 if there is IMMEDIATE danger to human life or health
-3. Severity 5-6 is for significant but non-life-threatening issues
-4. MOST reports are routine (potholes, garbage, lights) and should score 2-4
-5. Do NOT inflate severity just because the reporter sounds urgent
-6. Vague descriptions without clear danger indicators = low severity
-
-EVALUATION CRITERIA (rate each 0-5):
-1. Life Threat: Immediate danger to human life?
-2. Health Hazard: Immediate health risk?
-3. Scale of Impact: How many people affected?
-4. Time Sensitivity: Will delay cause irreversible harm?
-5. Vulnerability: Are vulnerable populations at risk?
-6. Infrastructure Criticality: Is critical infrastructure compromised?
-
-Respond with ONLY valid JSON:
-{
-  "is_sos": boolean,
-  "severity_score": number (1-10, most issues should be 2-4),
-  "severity_base": number (1-5, most issues should be 2-3),
-  "reasoning": "Brief explanation",
-  "risk_factors": ["list of identified risks, empty array if none"],
-  "estimated_affected_people": "none/few/moderate/many/critical",
-  "time_sensitivity": "low/medium/high/critical",
-  "recommended_priority": "normal/elevated/high/urgent/critical"
-}`;
+CRITICAL RULES:
+- Garbage, waste, sanitation complaints = severity 2-3 MAX, NEVER higher
+- Potholes, road issues = severity 2-3 MAX
+- Water leaks, drainage = severity 3-4 MAX
+- is_sos MUST be false unless severity_score >= 7
+- ONLY life-threatening situations get severity >= 7
+- Default assumption: the issue is routine (severity 2-3)`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -84,9 +53,34 @@ Respond with ONLY valid JSON:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a STRICT and CONSERVATIVE emergency detection AI. Respond with valid JSON only. MOST civic issues (potholes, garbage, streetlights, drainage, water leaks) are routine and MUST score severity 2-4. Only flag genuine life-threatening emergencies (gas leaks, building collapse, fires, exposed electrical wires, toxic spills) as SOS with severity >= 7. Default to LOW severity. When uncertain, always rate LOWER not higher." },
+          { role: "system", content: "You are a strict civic issue severity assessor. You MUST use the tool to respond. Most issues are routine (severity 2-3). Only genuine life-threatening emergencies score 7+." },
           { role: "user", content: prompt }
         ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "assess_severity",
+              description: "Assess the severity of a civic issue report. Most routine issues (garbage, potholes, streetlights) should score 2-3.",
+              parameters: {
+                type: "object",
+                properties: {
+                  is_sos: { type: "boolean", description: "true ONLY if severity_score >= 7 and there is immediate danger to life" },
+                  severity_score: { type: "number", description: "1-10 scale. Most issues should be 2-4. Only life-threatening = 7+" },
+                  severity_base: { type: "number", description: "1-5 scale. Most issues should be 2-3." },
+                  reasoning: { type: "string", description: "Brief explanation of the severity assessment" },
+                  risk_factors: { type: "array", items: { type: "string" }, description: "List of identified risks, empty if routine" },
+                  estimated_affected_people: { type: "string", enum: ["none", "few", "moderate", "many", "critical"] },
+                  time_sensitivity: { type: "string", enum: ["low", "medium", "high", "critical"] },
+                  recommended_priority: { type: "string", enum: ["normal", "elevated", "high", "urgent", "critical"] }
+                },
+                required: ["is_sos", "severity_score", "severity_base", "reasoning", "risk_factors", "estimated_affected_people", "time_sensitivity", "recommended_priority"],
+                additionalProperties: false
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "assess_severity" } },
       }),
     });
 
@@ -94,45 +88,88 @@ Respond with ONLY valid JSON:
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       return new Response(
-        JSON.stringify({ 
-          is_sos: false, 
-          severity_score: 3, 
-          severity_base: 3,
-          reasoning: "AI analysis unavailable, defaulting to normal priority",
-          risk_factors: [],
-          estimated_affected_people: "unknown",
-          time_sensitivity: "medium",
-          recommended_priority: "normal"
-        }),
+        JSON.stringify(defaultResult("AI analysis unavailable")),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
     
-    // Clean potential markdown code fences
-    const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const result = JSON.parse(cleaned);
+    // Extract from tool call response
+    let result;
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      result = JSON.parse(toolCall.function.arguments);
+    } else {
+      // Fallback: try parsing content directly
+      const content = data.choices?.[0]?.message?.content || "";
+      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      result = JSON.parse(cleaned);
+    }
+
+    // ENFORCE severity caps in code as a safety net
+    let severityScore = Math.min(10, Math.max(1, Number(result.severity_score) || 3));
+    let severityBase = Math.min(5, Math.max(1, Number(result.severity_base) || 2));
+    
+    // Check for known routine keywords - cap severity
+    const lowerTitle = (title || '').toLowerCase();
+    const lowerDesc = (description || '').toLowerCase();
+    const combined = lowerTitle + ' ' + lowerDesc;
+    
+    const routineKeywords = ['garbage', 'trash', 'waste', 'litter', 'pothole', 'streetlight', 'street light', 
+      'broken light', 'noise', 'park', 'graffiti', 'stray', 'parking', 'sidewalk', 'footpath',
+      'dust', 'sweeping', 'cleaning', 'maintenance'];
+    
+    const isRoutine = routineKeywords.some(kw => combined.includes(kw));
+    
+    const emergencyKeywords = ['collapse', 'fire', 'burning', 'gas leak', 'explosion', 'electrocution',
+      'live wire', 'exposed wire', 'toxic', 'chemical spill', 'flood', 'trapped', 'sinking', 'fatal'];
+    
+    const hasEmergencyKeyword = emergencyKeywords.some(kw => combined.includes(kw));
+    
+    if (isRoutine && !hasEmergencyKeyword) {
+      severityScore = Math.min(severityScore, 4);
+      severityBase = Math.min(severityBase, 3);
+    }
+    
+    // Enforce: is_sos must match severity
+    const isSos = severityScore >= 7 && hasEmergencyKeyword;
+
+    const finalResult = {
+      is_sos: isSos,
+      severity_score: severityScore,
+      severity_base: severityBase,
+      reasoning: result.reasoning || "Assessment complete",
+      risk_factors: isSos ? (result.risk_factors || []) : [],
+      estimated_affected_people: result.estimated_affected_people || "few",
+      time_sensitivity: result.time_sensitivity || "low",
+      recommended_priority: result.recommended_priority || "normal",
+    };
+
+    console.log("Final severity result:", JSON.stringify(finalResult));
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify(finalResult),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error in ai-sos-check:", error);
     return new Response(
-      JSON.stringify({ 
-        is_sos: false, 
-        severity_score: 3, 
-        severity_base: 3,
-        reasoning: "Analysis error, defaulting to normal priority",
-        risk_factors: [],
-        estimated_affected_people: "unknown",
-        time_sensitivity: "medium",
-        recommended_priority: "normal"
-      }),
+      JSON.stringify(defaultResult("Analysis error")),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+function defaultResult(reasoning: string) {
+  return {
+    is_sos: false,
+    severity_score: 3,
+    severity_base: 2,
+    reasoning,
+    risk_factors: [],
+    estimated_affected_people: "few",
+    time_sensitivity: "low",
+    recommended_priority: "normal",
+  };
+}

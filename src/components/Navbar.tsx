@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Bell, User, AlertCircle } from 'lucide-react';
+import { Menu, X, Bell, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
