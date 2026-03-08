@@ -175,35 +175,37 @@ const Dashboard = () => {
               {issue.location_address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{issue.location_address}</span>}
             </div>
           </div>
-          <div className="flex flex-col gap-2 shrink-0">
-            <Select value={issue.status} onValueChange={(val) => handleStatusChange(issue.id, val)}>
-              <SelectTrigger className="w-36 h-8 text-xs">
-                <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Reported">Reported</SelectItem>
-                <SelectItem value="In Progress">In Progress</SelectItem>
-                <SelectItem value="Resolved">Resolved</SelectItem>
-                <SelectItem value="Escalated">Escalated</SelectItem>
-                <SelectItem value="Closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-            {showAssign && (
-              <Select onValueChange={(val) => handleAssignToOfficial(issue.id, val)}>
+          {isOfficial && (
+            <div className="flex flex-col gap-2 shrink-0">
+              <Select value={issue.status} onValueChange={(val) => handleStatusChange(issue.id, val)}>
                 <SelectTrigger className="w-36 h-8 text-xs">
-                  <SelectValue placeholder="Assign to..." />
+                  <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {officials.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
+                  <SelectItem value="Reported">Reported</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                  <SelectItem value="Escalated">Escalated</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-            {issue.assigned_to === user?.id && (
-              <Badge className="text-xs bg-primary/20 text-primary justify-center">Assigned to you</Badge>
-            )}
-          </div>
+              {showAssign && (
+                <Select onValueChange={(val) => handleAssignToOfficial(issue.id, val)}>
+                  <SelectTrigger className="w-36 h-8 text-xs">
+                    <SelectValue placeholder="Assign to..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officials.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {issue.assigned_to === user?.id && (
+                <Badge className="text-xs bg-primary/20 text-primary justify-center">Assigned to you</Badge>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
