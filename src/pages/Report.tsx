@@ -183,6 +183,7 @@ const Report = () => {
         title,
         description,
         summary: summary || null,
+        category_id: categoryId || null,
         category_text: selectedCategory?.name || predictedCategory || null,
         media_urls: mediaUrls,
         location_address: locationAddress || null,
