@@ -264,7 +264,7 @@ const IssueDetail = () => {
               </div>
               <h1 className="text-3xl font-heading font-bold mb-2">{issue.title}</h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>By {issue.profiles?.full_name || 'Anonymous'}</span>
+                <span>By {issue.profiles?.name || 'Anonymous'}</span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   {new Date(issue.created_at).toLocaleDateString()}
