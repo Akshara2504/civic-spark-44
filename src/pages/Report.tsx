@@ -29,6 +29,7 @@ const Report = () => {
   const [categoryId, setCategoryId] = useState('');
   const [predictedCategory, setPredictedCategory] = useState('');
   const [predictedConfidence, setPredictedConfidence] = useState<number | null>(null);
+  const [predictedReasoning, setPredictedReasoning] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
