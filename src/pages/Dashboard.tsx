@@ -287,32 +287,59 @@ const Dashboard = () => {
                         <div className="ml-6 mt-3 space-y-3">
                           {deptOfficials.length > 0 ? (
                             deptOfficials.map((official) => {
-                              const officialIssues = getIssuesForOfficial(official.id);
-                              const isOfficialExpanded = expandedOfficial === official.id;
-                              return (
-                                <div key={official.id}>
-                                  <Card
-                                    className={`glass-card cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50 ${isOfficialExpanded ? 'ring-1 ring-primary/20' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setExpandedOfficial(isOfficialExpanded ? null : official.id); }}
-                                  >
-                                    <CardContent className="p-4 flex items-center justify-between">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
-                                          <UserCircle className="w-5 h-5 text-white" />
-                                        </div>
-                                        <div>
-                                          <h3 className="font-semibold">{official.name}</h3>
-                                          <Badge variant="outline" className="text-xs mt-0.5">{official.role}</Badge>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <Badge variant="secondary" className="text-xs px-2 py-1">
-                                          {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}
-                                        </Badge>
-                                        <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOfficialExpanded ? 'rotate-90' : ''}`} />
-                                      </div>
-                                    </CardContent>
-                                  </Card>
+                               const officialIssues = getIssuesForOfficial(official.id);
+                               const isOfficialExpanded = expandedOfficial === official.id;
+                               const hasUnresolved = officialIssues.some((i) => i.status !== 'Resolved' && i.status !== 'Closed');
+                               const hasIssues = officialIssues.length > 0;
+                               const allResolved = hasIssues && !hasUnresolved;
+                               return (
+                                 <div key={official.id}>
+                                   <Card
+                                     className={`glass-card cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50 ${isOfficialExpanded ? 'ring-1 ring-primary/20' : ''}`}
+                                     onClick={(e) => { e.stopPropagation(); setExpandedOfficial(isOfficialExpanded ? null : official.id); }}
+                                   >
+                                     <CardContent className="p-4 flex items-center justify-between">
+                                       <div className="flex items-center gap-3">
+                                         <div className="relative">
+                                           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
+                                             <UserCircle className="w-5 h-5 text-white" />
+                                           </div>
+                                           {/* Red blinking dot for unresolved issues */}
+                                           {hasUnresolved && (
+                                             <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+                                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                               <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-background"></span>
+                                             </span>
+                                           )}
+                                           {/* Green blinking dot for all resolved */}
+                                           {allResolved && (
+                                             <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
+                                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                               <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500 border-2 border-background"></span>
+                                             </span>
+                                           )}
+                                         </div>
+                                         <div>
+                                           <h3 className="font-semibold">{official.name}</h3>
+                                           <div className="flex items-center gap-2 mt-0.5">
+                                             <Badge variant="outline" className="text-xs">{official.role}</Badge>
+                                             {hasUnresolved && (
+                                               <span className="text-[10px] text-red-500 font-medium">● Pending issues</span>
+                                             )}
+                                             {allResolved && (
+                                               <span className="text-[10px] text-green-500 font-medium">● All resolved</span>
+                                             )}
+                                           </div>
+                                         </div>
+                                       </div>
+                                       <div className="flex items-center gap-3">
+                                         <Badge variant="secondary" className="text-xs px-2 py-1">
+                                           {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}
+                                         </Badge>
+                                         <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOfficialExpanded ? 'rotate-90' : ''}`} />
+                                       </div>
+                                     </CardContent>
+                                   </Card>
 
                                   <AnimatePresence>
                                     {isOfficialExpanded && (
