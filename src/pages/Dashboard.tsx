@@ -150,6 +150,8 @@ const Dashboard = () => {
     { label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: 'from-green-500 to-green-600' },
   ];
 
+  const isOfficial = profile?.role && profile.role !== 'Citizen';
+
   const IssueCard = ({ issue, showAssign = false }: { issue: any; showAssign?: boolean }) => (
     <Card className={`glass-card glass-card-dark hover:shadow-lg transition-shadow ${
       issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
