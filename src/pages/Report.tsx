@@ -7,16 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, MapPin, AlertCircle, Sparkles } from 'lucide-react';
+import { Loader2, MapPin, Sparkles, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import ImageUpload from '@/components/ImageUpload';
-import { generateSummary, categorizeIssue, translateText } from '@/utils/aiHelpers';
+import { generateSummary, categorizeIssue } from '@/utils/aiHelpers';
 
 const Report = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +33,6 @@ const Report = () => {
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
-  const [isSOS, setIsSOS] = useState(false);
   const [language, setLanguage] = useState<'en' | 'hi' | 'te'>('en');
 
   const categories = [
@@ -54,18 +53,12 @@ const Report = () => {
       toast.error('Geolocation not supported');
       return;
     }
-
     toast.loading('Getting your location...');
-    
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocationLat(position.coords.latitude);
         setLocationLng(position.coords.longitude);
-        
-        // Reverse geocoding placeholder
-        // TODO: Implement reverse geocoding with Google Maps API or similar
         setLocationAddress(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
-        
         toast.success('Location captured');
       },
       (error) => {
@@ -79,44 +72,64 @@ const Report = () => {
       toast.error('Please add a description first');
       return;
     }
-
     setIsGeneratingSummary(true);
     try {
       const generatedSummary = await generateSummary(description);
       setSummary(generatedSummary);
       toast.success('Summary generated');
-    } catch (error) {
+    } catch {
       toast.error('Failed to generate summary');
     } finally {
       setIsGeneratingSummary(false);
     }
   };
 
-  const handleAICategorizaion = async () => {
+  const handleAICategorization = async () => {
     if (!title && !description && images.length === 0) {
       toast.error('Please provide title, description, or images');
       return;
     }
-
     setIsCategorizingAI(true);
     try {
       const result = await categorizeIssue(title, description, images);
       setPredictedCategory(result.category);
       setPredictedConfidence(result.confidence);
-      
-      // Auto-select the category if confidence is high
       if (result.confidence > 0.7) {
         const category = categories.find(c => c.name === result.category);
-        if (category) {
-          setCategoryId(category.id);
-        }
+        if (category) setCategoryId(category.id);
       }
-      
       toast.success(`AI suggests: ${result.category} (${(result.confidence * 100).toFixed(0)}% confident)`);
-    } catch (error) {
+    } catch {
       toast.error('AI categorization failed');
     } finally {
       setIsCategorizingAI(false);
+    }
+  };
+
+  const runAISOSCheck = async (mediaUrls: string[]) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-sos-check', {
+        body: {
+          title,
+          description,
+          locationAddress,
+          locationLat,
+          locationLng,
+          mediaUrls,
+        }
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('AI SOS check error:', error);
+      return {
+        is_sos: false,
+        severity_score: 3,
+        severity_base: 3,
+        reasoning: 'AI check unavailable',
+        risk_factors: [],
+        recommended_priority: 'normal',
+      };
     }
   };
 
@@ -128,7 +141,6 @@ const Report = () => {
       navigate('/auth');
       return;
     }
-
     if (!title || !description) {
       toast.error('Title and description are required');
       return;
@@ -137,31 +149,32 @@ const Report = () => {
     setIsSubmitting(true);
     
     try {
-      // Upload images to Supabase Storage
+      // Upload images
       const mediaUrls: string[] = [];
-      
       if (images.length > 0) {
         toast.loading('Uploading images...');
-        
         for (const image of images) {
           const fileExt = image.name.split('.').pop();
           const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('issue-images')
             .upload(fileName, image);
-
           if (uploadError) throw uploadError;
-
           const { data: { publicUrl } } = supabase.storage
             .from('issue-images')
             .getPublicUrl(fileName);
-
           mediaUrls.push(publicUrl);
         }
       }
 
-      // Insert issue into database
+      // Run AI emergency detection
+      toast.loading('AI is analyzing emergency level...');
+      const sosResult = await runAISOSCheck(mediaUrls);
+      const isSOS = sosResult.is_sos === true;
+      const severityScore = sosResult.severity_score || 3;
+      const severityBase = sosResult.severity_base || 3;
+
+      // Insert issue
       const issueData = {
         user_id: user.id,
         title,
@@ -173,13 +186,14 @@ const Report = () => {
         location_address: locationAddress || null,
         location_lat: locationLat,
         location_lng: locationLng,
-        location_point: locationLat && locationLng 
-          ? `POINT(${locationLng} ${locationLat})` 
+        location_point: locationLat && locationLng
+          ? `POINT(${locationLng} ${locationLat})`
           : null,
         predicted_category: predictedCategory || null,
         predicted_confidence: predictedConfidence,
         sos_flag: isSOS,
-        severity_base: isSOS ? 5 : 3,
+        severity_base: severityBase,
+        severity_score: severityScore,
       };
 
       const { data: issue, error: issueError } = await supabase
@@ -187,33 +201,27 @@ const Report = () => {
         .insert(issueData)
         .select()
         .single();
-
       if (issueError) throw issueError;
 
-      // TODO: Auto-translate to Telugu and Hindi
-      // const translations = await Promise.all([
-      //   translateText(description, 'hi'),
-      //   translateText(description, 'te')
-      // ]);
-
-      // If SOS, create SOS alert
+      // If AI flagged as SOS, create alert automatically
       if (isSOS) {
         await supabase.from('sos_alerts').insert({
           user_id: user.id,
           issue_id: issue.id,
-          description: title,
-          severity: 5,
+          description: `[AI-DETECTED] ${title}`,
+          severity: severityBase,
           location_lat: locationLat,
           location_lng: locationLng,
           location_address: locationAddress,
         });
+        toast.success(
+          `🚨 AI detected this as an EMERGENCY (severity ${severityScore}/10): ${sosResult.reasoning}`,
+          { duration: 8000 }
+        );
+      } else {
+        toast.success('Issue reported successfully!');
       }
 
-      toast.success('Issue reported successfully!');
-      
-      // Confetti animation on success
-      // TODO: Add confetti library
-      
       navigate(`/issue/${issue.id}`);
     } catch (error: any) {
       console.error('Error submitting report:', error);
@@ -237,6 +245,22 @@ const Report = () => {
           </p>
         </motion.div>
 
+        {/* AI SOS Info Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-start gap-3"
+        >
+          <ShieldAlert className="w-6 h-6 text-primary mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium text-sm">AI Emergency Detection Active</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Our AI system automatically analyzes your report to detect emergencies based on description, images, location, and severity. Critical issues are auto-prioritized and routed to authorities immediately.
+            </p>
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -255,9 +279,7 @@ const Report = () => {
                 <div>
                   <Label>Language</Label>
                   <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="en">English</SelectItem>
                       <SelectItem value="hi">Hindi (हिंदी)</SelectItem>
@@ -282,7 +304,7 @@ const Report = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label htmlFor="description">Description *</Label>
-                    <VoiceRecorder 
+                    <VoiceRecorder
                       onTranscriptChange={handleVoiceTranscript}
                       language={language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'te-IN'}
                     />
@@ -339,7 +361,7 @@ const Report = () => {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={handleAICategorizaion}
+                      onClick={handleAICategorization}
                       disabled={isCategorizingAI}
                     >
                       {isCategorizingAI ? (
@@ -350,17 +372,13 @@ const Report = () => {
                       AI Suggest
                     </Button>
                   </div>
-                  
                   {predictedCategory && predictedConfidence && (
                     <div className="mb-2 p-2 bg-primary/10 rounded-lg text-sm">
                       AI suggests: <strong>{predictedCategory}</strong> ({(predictedConfidence * 100).toFixed(0)}% confidence)
                     </div>
                   )}
-                  
                   <Select value={categoryId} onValueChange={setCategoryId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                     <SelectContent>
                       {categories.map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>
@@ -375,12 +393,7 @@ const Report = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label>Location (optional)</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleGetLocation}
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={handleGetLocation}>
                       <MapPin className="w-4 h-4 mr-2" />
                       Get Current Location
                     </Button>
@@ -390,21 +403,6 @@ const Report = () => {
                     onChange={(e) => setLocationAddress(e.target.value)}
                     placeholder="Enter location or use GPS"
                   />
-                </div>
-
-                {/* SOS Flag */}
-                <div className="flex items-center gap-2 p-4 border-2 border-destructive/50 rounded-lg bg-destructive/5">
-                  <input
-                    type="checkbox"
-                    id="sos"
-                    checked={isSOS}
-                    onChange={(e) => setIsSOS(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <Label htmlFor="sos" className="flex items-center gap-2 cursor-pointer">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    <span>This is an emergency (SOS)</span>
-                  </Label>
                 </div>
 
                 {/* Submit Button */}
@@ -417,7 +415,7 @@ const Report = () => {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Submitting...
+                      Analyzing & Submitting...
                     </>
                   ) : (
                     'Submit Report'
