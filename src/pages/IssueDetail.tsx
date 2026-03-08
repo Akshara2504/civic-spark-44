@@ -192,6 +192,26 @@ const IssueDetail = () => {
     }
   };
 
+  const handleMarkResolved = async () => {
+    if (!user || issue.user_id !== user.id) {
+      toast.error('Only the reporter can mark this as resolved');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('issues')
+        .update({ status: 'Resolved' as any, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast.success('Issue marked as resolved! Thank you for confirming.');
+      fetchIssueDetails();
+    } catch (error) {
+      console.error('Error marking resolved:', error);
+      toast.error('Failed to update issue status');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Reported': return 'bg-yellow-500';
