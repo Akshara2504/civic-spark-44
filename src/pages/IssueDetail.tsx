@@ -21,7 +21,7 @@ const IssueDetail = () => {
   const [issue, setIssue] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [userVote, setUserVote] = useState<'upvote' | 'downvote' | null>(null);
+  const [userVote, setUserVote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ const IssueDetail = () => {
         .from('issues')
         .select(`
           *,
-          profiles:user_id (full_name),
+          profiles:user_id (name),
           categories (name, icon)
         `)
         .eq('id', id)
@@ -91,7 +91,7 @@ const IssueDetail = () => {
         .from('comments')
         .select(`
           *,
-          profiles:user_id (full_name)
+          profiles:user_id (name)
         `)
         .eq('issue_id', id)
         .order('created_at', { ascending: false });
@@ -192,19 +192,20 @@ const IssueDetail = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'reported': return 'bg-yellow-500';
-      case 'in_progress': return 'bg-blue-500';
-      case 'resolved': return 'bg-green-500';
-      case 'rejected': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'Reported': return 'bg-yellow-500';
+      case 'In Progress': return 'bg-blue-500';
+      case 'Resolved': return 'bg-green-500';
+      case 'Escalated': return 'bg-red-500';
+      case 'Closed': return 'bg-muted';
+      default: return 'bg-muted';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'reported': return <Clock className="w-4 h-4" />;
-      case 'in_progress': return <AlertTriangle className="w-4 h-4" />;
-      case 'resolved': return <CheckCircle className="w-4 h-4" />;
+      case 'Reported': return <Clock className="w-4 h-4" />;
+      case 'In Progress': return <AlertTriangle className="w-4 h-4" />;
+      case 'Resolved': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -252,7 +253,7 @@ const IssueDetail = () => {
               <div className="flex items-center gap-2 mb-2">
                 <Badge className={getStatusColor(issue.status)}>
                   {getStatusIcon(issue.status)}
-                  <span className="ml-1 capitalize">{issue.status.replace('_', ' ')}</span>
+                  <span className="ml-1">{issue.status}</span>
                 </Badge>
                 <Badge variant="outline">{issue.categories?.name}</Badge>
                 {issue.sos_flag && (
@@ -264,15 +265,15 @@ const IssueDetail = () => {
               </div>
               <h1 className="text-3xl font-heading font-bold mb-2">{issue.title}</h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>By {issue.profiles?.full_name || 'Anonymous'}</span>
+                <span>By {issue.profiles?.name || 'Anonymous'}</span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   {new Date(issue.created_at).toLocaleDateString()}
                 </span>
-                {issue.location_description && (
+              {issue.location_address && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {issue.location_description}
+                    {issue.location_address}
                   </span>
                 )}
               </div>
@@ -319,10 +320,10 @@ const IssueDetail = () => {
           </div>
 
           {/* AI Summary */}
-          {issue.ai_summary && (
+          {issue.summary && (
             <div className="mb-6 p-4 bg-accent/50 rounded-lg">
               <h3 className="font-semibold mb-2">AI Summary</h3>
-              <p className="text-sm">{issue.ai_summary}</p>
+              <p className="text-sm">{issue.summary}</p>
             </div>
           )}
 
@@ -364,13 +365,13 @@ const IssueDetail = () => {
               >
                 <Avatar>
                   <AvatarFallback>
-                    {comment.profiles?.full_name?.[0] || 'U'}
+                    {comment.profiles?.name?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">
-                      {comment.profiles?.full_name || 'Anonymous'}
+                      {comment.profiles?.name || 'Anonymous'}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {new Date(comment.created_at).toLocaleDateString()}
