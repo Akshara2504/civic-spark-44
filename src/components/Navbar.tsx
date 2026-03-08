@@ -93,11 +93,9 @@ export const Navbar = () => {
                     <DropdownMenuItem asChild>
                       <Link to={`/profile/${user.id}`}>Profile</Link>
                     </DropdownMenuItem>
-                    {profile?.role !== 'Citizen' && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/dashboard">Dashboard</Link>
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/settings">Settings</Link>
                     </DropdownMenuItem>

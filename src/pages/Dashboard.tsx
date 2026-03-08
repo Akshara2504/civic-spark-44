@@ -35,11 +35,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) { navigate('/auth'); return; }
-    if (profile && profile.role === 'Citizen') {
-      toast.error('Access denied. Officials only.');
-      navigate('/feed');
-      return;
-    }
     fetchData();
     const cleanup = setupRealtime();
     return cleanup;
