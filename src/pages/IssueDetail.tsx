@@ -69,7 +69,7 @@ const IssueDetail = () => {
         .from('issues')
         .select(`
           *,
-          profiles:user_id (full_name),
+          profiles:user_id (name),
           categories (name, icon)
         `)
         .eq('id', id)
