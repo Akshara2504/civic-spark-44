@@ -100,7 +100,7 @@ const Settings = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label>Language Preference</Label>
-                <Select value={languagePref} onValueChange={setLanguagePref}>
+                <Select value={languagePref} onValueChange={(val) => setLanguagePref(val as LangCode)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
