@@ -157,12 +157,6 @@ export const Navbar = () => {
             ))}
             {user ? (
               <>
-                <Link to="/sos" onClick={() => setIsOpen(false)}>
-                  <Button variant="destructive" className="w-full font-button">
-                    <AlertCircle className="w-4 h-4 mr-2" />
-                    SOS
-                  </Button>
-                </Link>
                 <Button
                   onClick={() => {
                     signOut();
