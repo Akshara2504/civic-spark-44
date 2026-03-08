@@ -44,6 +44,8 @@ const Feed = () => {
     let query = supabase
       .from('issues')
       .select(`*, profiles:user_id (name), categories (name, icon)`)
+      .order('sos_flag', { ascending: false })
+      .order('severity_score', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (statusFilter !== 'all') {
@@ -151,7 +153,9 @@ const Feed = () => {
                 transition={{ delay: i * 0.05 }}
               >
                 <Link to={`/issue/${issue.id}`}>
-                  <Card className="glass-card glass-card-dark hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer h-full">
+                  <Card className={`glass-card glass-card-dark hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer h-full ${
+                    issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
+                  }`}>
                     <CardContent className="p-4">
                       {/* Media preview */}
                       {issue.media_urls && issue.media_urls.length > 0 && (
@@ -174,9 +178,20 @@ const Feed = () => {
                       </div>
 
                       <h3 className="font-semibold text-lg mb-1 line-clamp-1">{issue.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                         {issue.summary || issue.description}
                       </p>
+                      {issue.severity_score != null && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                            issue.severity_score >= 7 ? 'bg-destructive/20 text-destructive' 
+                            : issue.severity_score >= 5 ? 'bg-yellow-500/20 text-yellow-700' 
+                            : 'bg-green-500/20 text-green-700'
+                          }`}>
+                            Severity: {issue.severity_score}/10
+                          </span>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <div className="flex items-center gap-3">
