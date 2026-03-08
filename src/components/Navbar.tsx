@@ -18,11 +18,15 @@ export const Navbar = () => {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
 
+  const isAuthority = profile?.role && profile.role !== 'Citizen';
+
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Feed', path: '/feed' },
-    { name: 'My Issues', path: '/my-issues', auth: true },
-    { name: 'Report Issue', path: '/report' },
+    ...(!isAuthority ? [
+      { name: 'My Issues', path: '/my-issues', auth: true },
+      { name: 'Report Issue', path: '/report' },
+    ] : []),
     { name: 'Authority Hub', path: '/dashboard' },
     { name: 'About', path: '/about' },
   ].filter(item => !('auth' in item) || (item.auth && user));

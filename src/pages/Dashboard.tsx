@@ -12,7 +12,7 @@ import {
   Clock, CheckCircle, AlertTriangle, Eye, ArrowUpDown,
   Filter, RefreshCw, MapPin, Calendar, UserCircle, Inbox,
   ChevronRight, Building2, Droplets, Zap, Trash2, Shield,
-  TreePine, HeartPulse, HelpCircle, Car
+  TreePine, HeartPulse, HelpCircle, Car, ClipboardList
 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -63,6 +63,9 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, reported: 0, in_progress: 0, resolved: 0 });
   const [expandedDept, setExpandedDept] = useState<string | null>(null);
   const [expandedOfficial, setExpandedOfficial] = useState<string | null>(null);
+
+  const isOfficialUser = profile?.role && profile.role !== 'Citizen';
+  const isMyDashboard = isOfficialUser && profile?.department_id;
 
   useEffect(() => {
     if (!user) { navigate('/auth'); return; }
@@ -163,7 +166,6 @@ const Dashboard = () => {
     return styles[status] || 'bg-muted text-muted-foreground';
   };
 
-  // Issues for a department: assigned to officials in that dept OR category maps to that dept
   const getIssuesForDept = (deptId: string) =>
     issues.filter((i) =>
       (i.assigned_profile?.department_id === deptId) ||
@@ -178,20 +180,188 @@ const Dashboard = () => {
 
   const unassignedIssues = issues.filter((i) => !i.assigned_to && !i.categories?.department_id);
 
-  const isOfficialUser = profile?.role && profile.role !== 'Citizen';
+  // Get issues assigned to the current logged-in official
+  const myAssignedIssues = isMyDashboard
+    ? issues.filter((i) => i.assigned_to === user?.id || (i.categories?.department_id === profile?.department_id && !i.assigned_to))
+    : [];
+
+  const myStats = isMyDashboard ? {
+    total: myAssignedIssues.length,
+    reported: myAssignedIssues.filter(i => i.status === 'Reported').length,
+    in_progress: myAssignedIssues.filter(i => i.status === 'In Progress').length,
+    resolved: myAssignedIssues.filter(i => i.status === 'Resolved').length,
+  } : stats;
+
+  const displayStats = isMyDashboard ? myStats : stats;
 
   const statCards = [
-    { label: 'Total Issues', value: stats.total, icon: Eye, color: 'from-primary to-primary-glow' },
-    { label: 'Reported', value: stats.reported, icon: Clock, color: 'from-yellow-500 to-yellow-600' },
-    { label: 'In Progress', value: stats.in_progress, icon: AlertTriangle, color: 'from-blue-500 to-blue-600' },
-    { label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: 'from-green-500 to-green-600' },
+    { label: 'Total Issues', value: displayStats.total, icon: Eye, color: 'from-primary to-primary-glow' },
+    { label: 'Reported', value: displayStats.reported, icon: Clock, color: 'from-yellow-500 to-yellow-600' },
+    { label: 'In Progress', value: displayStats.in_progress, icon: AlertTriangle, color: 'from-blue-500 to-blue-600' },
+    { label: 'Resolved', value: displayStats.resolved, icon: CheckCircle, color: 'from-green-500 to-green-600' },
   ];
 
+  // ──────── AUTHORITY PERSONAL DASHBOARD ────────
+  if (isMyDashboard) {
+    const myDept = departments.find(d => d.id === profile.department_id);
+    const DeptIcon = myDept ? (DEPT_ICONS[myDept.name] || Building2) : Building2;
+    const deptColor = myDept ? (DEPT_COLORS[myDept.name] || 'from-primary to-secondary') : 'from-primary to-secondary';
+
+    return (
+      <div className="min-h-screen pt-24 px-4 pb-12">
+        <div className="container mx-auto max-w-5xl">
+          {/* Header */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${deptColor} flex items-center justify-center shadow-lg`}>
+                <DeptIcon className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-heading font-bold">Welcome, {profile.name}</h1>
+                <p className="text-muted-foreground flex items-center gap-2">
+                  <Badge variant="outline">{profile.role}</Badge>
+                  <span>•</span>
+                  <span>{myDept?.name || 'Department'}</span>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {statCards.map((stat, i) => (
+              <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+                <Card className="glass-card glass-card-dark">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center`}>
+                      <stat.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Filter + Refresh */}
+          <div className="flex items-center gap-4 mb-6">
+            <Filter className="w-5 h-5 text-muted-foreground" />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Issues</SelectItem>
+                <SelectItem value="Reported">Reported</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Resolved">Resolved</SelectItem>
+                <SelectItem value="Escalated">Escalated</SelectItem>
+                <SelectItem value="Closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={fetchData}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+            </Button>
+          </div>
+
+          {/* My Assigned Issues */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+            </div>
+          ) : myAssignedIssues.length === 0 ? (
+            <Card className="glass-card glass-card-dark p-12 text-center">
+              <ClipboardList className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-heading font-semibold mb-2">No Issues Assigned</h2>
+              <p className="text-muted-foreground">You have no reported issues to handle right now. Great job!</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              <h2 className="text-lg font-heading font-semibold flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-primary" />
+                Issues Assigned to You ({myAssignedIssues.length})
+              </h2>
+              {myAssignedIssues.map((issue, i) => (
+                <motion.div key={issue.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}>
+                  <Card className={`glass-card glass-card-dark hover:shadow-lg transition-all ${issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <Badge className={`${getStatusBadge(issue.status)} text-xs`}>{issue.status}</Badge>
+                            {issue.categories?.name && <Badge variant="outline" className="text-xs">{issue.categories.name}</Badge>}
+                            {issue.sos_flag && <Badge variant="destructive" className="text-xs animate-pulse">🚨 SOS</Badge>}
+                            {issue.severity_score != null && (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                issue.severity_score >= 7 ? 'bg-destructive/20 text-destructive' 
+                                : issue.severity_score >= 5 ? 'bg-yellow-500/20 text-yellow-700' 
+                                : 'bg-green-500/20 text-green-700'
+                              }`}>
+                                Severity: {issue.severity_score}/10
+                              </span>
+                            )}
+                          </div>
+                          <Link to={`/issue/${issue.id}`}>
+                            <h3 className="font-semibold text-base hover:text-primary transition-colors mb-1">{issue.title}</h3>
+                          </Link>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                            {issue.summary || issue.description}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <UserCircle className="w-3 h-3" /> {issue.profiles?.name || 'Anonymous'}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {new Date(issue.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                            {issue.location_address && (
+                              <span className="flex items-center gap-1 truncate">
+                                <MapPin className="w-3 h-3" /> {issue.location_address}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Status changer */}
+                        <div className="shrink-0 flex flex-col items-end gap-2">
+                          <Select value={issue.status} onValueChange={(val) => handleStatusChange(issue.id, val)}>
+                            <SelectTrigger className="w-36 h-8 text-xs">
+                              <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Reported">Reported</SelectItem>
+                              <SelectItem value="In Progress">In Progress</SelectItem>
+                              <SelectItem value="Resolved">Resolved</SelectItem>
+                              <SelectItem value="Escalated">Escalated</SelectItem>
+                              <SelectItem value="Closed">Closed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Link to={`/issue/${issue.id}`}>
+                            <Button variant="outline" size="sm" className="text-xs">
+                              <Eye className="w-3 h-3 mr-1" /> View Details
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ──────── GENERAL AUTHORITY HUB (for citizens / admins viewing all) ────────
   return (
     <div className="min-h-screen pt-24 px-4 pb-12">
       <div className="container mx-auto max-w-7xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-4xl font-heading font-bold mb-2">Authorities Dashboard</h1>
+          <h1 className="text-4xl font-heading font-bold mb-2">Authority Hub</h1>
           <p className="text-muted-foreground">Departments, their authorities, and assigned civic issues</p>
         </motion.div>
 
@@ -241,7 +411,6 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Department Cards */}
             {departments.map((dept, i) => {
               const deptOfficials = getOfficialsForDept(dept.id);
               const deptIssues = getIssuesForDept(dept.id);
@@ -304,14 +473,12 @@ const Dashboard = () => {
                                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
                                              <UserCircle className="w-5 h-5 text-white" />
                                            </div>
-                                           {/* Red blinking dot for unresolved issues */}
                                            {hasUnresolved && (
                                              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                                                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-background"></span>
                                              </span>
                                            )}
-                                           {/* Green blinking dot for all resolved */}
                                            {allResolved && (
                                              <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5">
                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -323,12 +490,8 @@ const Dashboard = () => {
                                            <h3 className="font-semibold">{official.name}</h3>
                                            <div className="flex items-center gap-2 mt-0.5">
                                              <Badge variant="outline" className="text-xs">{official.role}</Badge>
-                                             {hasUnresolved && (
-                                               <span className="text-[10px] text-red-500 font-medium">● Pending issues</span>
-                                             )}
-                                             {allResolved && (
-                                               <span className="text-[10px] text-green-500 font-medium">● All resolved</span>
-                                             )}
+                                             {hasUnresolved && <span className="text-[10px] text-red-500 font-medium">● Pending issues</span>}
+                                             {allResolved && <span className="text-[10px] text-green-500 font-medium">● All resolved</span>}
                                            </div>
                                          </div>
                                        </div>
@@ -370,7 +533,6 @@ const Dashboard = () => {
                             </div>
                           )}
 
-                          {/* Show unassigned dept issues (routed by category but no official yet) */}
                           {(() => {
                             const unassignedDeptIssues = deptIssues.filter((i) => !i.assigned_to);
                             if (unassignedDeptIssues.length === 0) return null;
@@ -405,7 +567,6 @@ const Dashboard = () => {
               );
             })}
 
-            {/* Fully unassigned (no dept match) */}
             {unassignedIssues.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Card
