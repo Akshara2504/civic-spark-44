@@ -48,7 +48,7 @@ const Feed = () => {
       .order('created_at', { ascending: false });
 
     if (statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
+      query = query.eq('status', statusFilter as Database['public']['Enums']['issue_status']);
     }
     if (categoryFilter !== 'all') {
       query = query.eq('category_id', categoryFilter);
