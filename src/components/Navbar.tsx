@@ -21,10 +21,11 @@ export const Navbar = () => {
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Feed', path: '/feed' },
+    { name: 'My Issues', path: '/my-issues', auth: true },
     { name: 'Report Issue', path: '/report' },
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'About', path: '/about' },
-  ];
+  ].filter(item => !('auth' in item) || (item.auth && user));
 
   const isActive = (path: string) => location.pathname === path;
 
