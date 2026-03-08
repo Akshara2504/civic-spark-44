@@ -18,7 +18,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `You are an AI emergency detection system for a civic issue reporting platform. Analyze the following reported issue and determine if it qualifies as an EMERGENCY (SOS).
+    const prompt = `You are a STRICT and CONSERVATIVE AI emergency detection system for a civic issue reporting platform. Your job is to realistically assess severity. MOST issues are NOT emergencies.
 
 ISSUE DETAILS:
 - Title: ${title || 'Not provided'}
@@ -27,26 +27,49 @@ ISSUE DETAILS:
 - Coordinates: ${locationLat && locationLng ? `${locationLat}, ${locationLng}` : 'Not provided'}
 - Number of images attached: ${mediaUrls?.length || 0}
 
-EVALUATION CRITERIA:
-1. **Life Threat**: Does the issue pose immediate danger to human life? (e.g., building collapse, gas leak, flooding, fire, exposed live wires, open manholes on busy roads)
-2. **Health Hazard**: Is there an immediate health risk? (e.g., contaminated water supply, sewage overflow in residential areas, toxic spills)
-3. **Scale of Impact**: How many people are potentially affected? (single household vs entire neighborhood/area)
-4. **Time Sensitivity**: Will delay cause irreversible harm? (e.g., rising floodwater vs a pothole)
-5. **Vulnerability**: Are vulnerable populations at risk? (near schools, hospitals, elderly housing)
-6. **Infrastructure Criticality**: Is critical infrastructure compromised? (main water line, power grid, bridge)
+SEVERITY CALIBRATION (follow these examples strictly):
+- Pothole on road → severity 2-3, NOT SOS
+- Broken streetlight → severity 2, NOT SOS
+- Garbage not collected → severity 2-3, NOT SOS
+- Water leakage from pipe → severity 3-4, NOT SOS
+- Drainage blocked → severity 3-4, NOT SOS
+- Road damage / cracks → severity 2-3, NOT SOS
+- Stray animal nuisance → severity 2, NOT SOS
+- Noise complaint → severity 1-2, NOT SOS
+- Park maintenance needed → severity 1-2, NOT SOS
+- Traffic signal not working → severity 4-5, NOT SOS
+- Minor flooding in street → severity 4-5, NOT SOS
+- Large sinkhole on busy road → severity 6-7, MAYBE SOS
+- Gas leak detected → severity 8-9, SOS
+- Building collapse / structural failure → severity 9-10, SOS
+- Live exposed electrical wires in public → severity 8-9, SOS
+- Major water contamination → severity 8-9, SOS
+- Fire in residential area → severity 9-10, SOS
+- Bridge structural damage → severity 7-8, SOS
 
-SCORING:
-- Rate each criterion 0-5
-- Calculate overall severity (1-10 scale)
-- If severity >= 7, classify as SOS/Emergency
+RULES:
+1. Default severity should be 2-4 for routine civic issues
+2. Only rate severity >= 7 if there is IMMEDIATE danger to human life or health
+3. Severity 5-6 is for significant but non-life-threatening issues
+4. MOST reports are routine (potholes, garbage, lights) and should score 2-4
+5. Do NOT inflate severity just because the reporter sounds urgent
+6. Vague descriptions without clear danger indicators = low severity
 
-You MUST respond with ONLY a valid JSON object:
+EVALUATION CRITERIA (rate each 0-5):
+1. Life Threat: Immediate danger to human life?
+2. Health Hazard: Immediate health risk?
+3. Scale of Impact: How many people affected?
+4. Time Sensitivity: Will delay cause irreversible harm?
+5. Vulnerability: Are vulnerable populations at risk?
+6. Infrastructure Criticality: Is critical infrastructure compromised?
+
+Respond with ONLY valid JSON:
 {
   "is_sos": boolean,
-  "severity_score": number (1-10),
-  "severity_base": number (1-5),
-  "reasoning": "Brief explanation of why this is/isn't an emergency",
-  "risk_factors": ["list", "of", "identified", "risks"],
+  "severity_score": number (1-10, most issues should be 2-4),
+  "severity_base": number (1-5, most issues should be 2-3),
+  "reasoning": "Brief explanation",
+  "risk_factors": ["list of identified risks, empty array if none"],
   "estimated_affected_people": "none/few/moderate/many/critical",
   "time_sensitivity": "low/medium/high/critical",
   "recommended_priority": "normal/elevated/high/urgent/critical"
@@ -61,7 +84,7 @@ You MUST respond with ONLY a valid JSON object:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are an emergency detection AI. Always respond with valid JSON only. Be conservative - only flag true emergencies as SOS to avoid alert fatigue, but never miss genuinely dangerous situations." },
+          { role: "system", content: "You are a STRICT and CONSERVATIVE emergency detection AI. Respond with valid JSON only. MOST civic issues (potholes, garbage, streetlights, drainage, water leaks) are routine and MUST score severity 2-4. Only flag genuine life-threatening emergencies (gas leaks, building collapse, fires, exposed electrical wires, toxic spills) as SOS with severity >= 7. Default to LOW severity. When uncertain, always rate LOWER not higher." },
           { role: "user", content: prompt }
         ],
       }),
