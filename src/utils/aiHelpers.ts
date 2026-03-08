@@ -106,16 +106,20 @@ export const categorizeIssue = async (
     // Fallback to keyword-based classification
     const text = `${title} ${description}`.toLowerCase();
     
-    if (text.includes('road') || text.includes('pothole') || text.includes('traffic')) {
-      return { category: 'Roads', confidence: 0.8 };
-    } else if (text.includes('water') || text.includes('drainage') || text.includes('leak')) {
-      return { category: 'Water', confidence: 0.8 };
-    } else if (text.includes('electric') || text.includes('power') || text.includes('light')) {
+    if (/road|pothole|traffic|highway|bridge/.test(text)) {
+      return { category: 'Roads & Transport', confidence: 0.8 };
+    } else if (/water|drainage|sewage|leak|pipe|flood/.test(text)) {
+      return { category: 'Water & Drainage', confidence: 0.8 };
+    } else if (/electric|power|light|transformer|wire/.test(text)) {
       return { category: 'Electricity', confidence: 0.8 };
-    } else if (text.includes('garbage') || text.includes('sanitation') || text.includes('waste')) {
-      return { category: 'Sanitation', confidence: 0.8 };
-    } else if (text.includes('safety') || text.includes('crime') || text.includes('security')) {
-      return { category: 'Safety', confidence: 0.8 };
+    } else if (/garbage|trash|waste|dustbin|litter|dump/.test(text)) {
+      return { category: 'Waste Management', confidence: 0.8 };
+    } else if (/safety|crime|fire|accident|security|theft/.test(text)) {
+      return { category: 'Public Safety', confidence: 0.8 };
+    } else if (/park|playground|garden|recreation/.test(text)) {
+      return { category: 'Parks & Recreation', confidence: 0.8 };
+    } else if (/health|mosquito|sanitation|disease|hygien/.test(text)) {
+      return { category: 'Health & Sanitation', confidence: 0.8 };
     }
     
     return { category: 'Other', confidence: 0.5 };
