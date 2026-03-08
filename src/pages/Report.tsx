@@ -200,7 +200,7 @@ const Report = () => {
 
       const { data: issue, error: issueError } = await supabase
         .from('issues')
-        .insert(issueData)
+        .insert(issueData as any)
         .select()
         .single();
       if (issueError) throw issueError;
