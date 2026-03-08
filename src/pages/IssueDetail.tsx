@@ -322,7 +322,7 @@ const IssueDetail = () => {
           {issue.summary && (
             <div className="mb-6 p-4 bg-accent/50 rounded-lg">
               <h3 className="font-semibold mb-2">AI Summary</h3>
-              <p className="text-sm">{issue.ai_summary}</p>
+              <p className="text-sm">{issue.summary}</p>
             </div>
           )}
 
