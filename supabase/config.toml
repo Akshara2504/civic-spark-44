@@ -1,1 +1,10 @@
 project_id = "etnconookokphpcxgibi"
+
+[functions.ai-sos-check]
+verify_jwt = false
+
+[functions.ai-summarize-text]
+verify_jwt = false
+
+[functions.ai-categorize-issue]
+verify_jwt = false
