@@ -22,14 +22,16 @@ export const Navbar = () => {
 
   const navItems = [
     { name: 'Home', path: '/' },
-    { name: 'Feed', path: '/feed' },
-    ...(!isAuthority ? [
-      { name: 'My Issues', path: '/my-issues', auth: true },
-      { name: 'Report Issue', path: '/report' },
+    ...(user ? [
+      { name: 'Feed', path: '/feed' },
+      ...(!isAuthority ? [
+        { name: 'My Issues', path: '/my-issues' },
+        { name: 'Report Issue', path: '/report' },
+      ] : []),
+      { name: 'Authority Hub', path: '/dashboard' },
     ] : []),
-    { name: 'Authority Hub', path: '/dashboard' },
     { name: 'About', path: '/about' },
-  ].filter(item => !('auth' in item) || (item.auth && user));
+  ];
 
   const isActive = (path: string) => location.pathname === path;
 
