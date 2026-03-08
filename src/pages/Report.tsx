@@ -175,13 +175,15 @@ const Report = () => {
       const severityBase = sosResult.severity_base || 3;
 
       // Insert issue
-      const issueData = {
+      // Find the category name for category_text
+      const selectedCategory = categories.find(c => c.id === categoryId);
+      
+      const issueData: Record<string, any> = {
         user_id: user.id,
         title,
         description,
         summary: summary || null,
-        category_id: categoryId || null,
-        category_text: predictedCategory || null,
+        category_text: selectedCategory?.name || predictedCategory || null,
         media_urls: mediaUrls,
         location_address: locationAddress || null,
         location_lat: locationLat,
