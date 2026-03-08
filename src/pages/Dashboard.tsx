@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import {
   Clock, CheckCircle, AlertTriangle, Eye, ArrowUpDown,
-  Filter, RefreshCw, MapPin, Calendar, UserCircle, Inbox
+  Filter, RefreshCw, MapPin, Calendar, UserCircle, Inbox,
+  ChevronRight, Building2
 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -24,6 +25,12 @@ interface Official {
   avatar_url: string | null;
 }
 
+interface DepartmentGroup {
+  department_name: string;
+  officials: Official[];
+  issueCount: number;
+}
+
 const Dashboard = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -32,6 +39,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState({ total: 0, reported: 0, in_progress: 0, resolved: 0 });
+  const [expandedDept, setExpandedDept] = useState<string | null>(null);
+  const [expandedOfficial, setExpandedOfficial] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) { navigate('/auth'); return; }
@@ -51,7 +60,6 @@ const Dashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch officials and issues in parallel
       const [officialsRes, issuesRes] = await Promise.all([
         supabase
           .from('profiles')
@@ -78,7 +86,7 @@ const Dashboard = () => {
         id: o.id,
         name: o.name,
         role: o.role,
-        department_name: o.departments?.name || null,
+        department_name: o.departments?.name || 'Unassigned Dept',
         avatar_url: o.avatar_url,
       }));
 
@@ -143,6 +151,23 @@ const Dashboard = () => {
 
   const unassignedIssues = issues.filter((i) => !i.assigned_to);
 
+  // Group officials by department
+  const departmentGroups: DepartmentGroup[] = (() => {
+    const map = new Map<string, Official[]>();
+    officials.forEach((o) => {
+      const dept = o.department_name || 'Unassigned Dept';
+      if (!map.has(dept)) map.set(dept, []);
+      map.get(dept)!.push(o);
+    });
+    return Array.from(map.entries()).map(([dept, offs]) => ({
+      department_name: dept,
+      officials: offs,
+      issueCount: offs.reduce((sum, o) => sum + getIssuesForOfficial(o.id).length, 0),
+    }));
+  })();
+
+  const isOfficialUser = profile?.role && profile.role !== 'Citizen';
+
   const statCards = [
     { label: 'Total Issues', value: stats.total, icon: Eye, color: 'from-primary to-primary-glow' },
     { label: 'Reported', value: stats.reported, icon: Clock, color: 'from-yellow-500 to-yellow-600' },
@@ -150,73 +175,12 @@ const Dashboard = () => {
     { label: 'Resolved', value: stats.resolved, icon: CheckCircle, color: 'from-green-500 to-green-600' },
   ];
 
-  const isOfficial = profile?.role && profile.role !== 'Citizen';
-
-  const IssueCard = ({ issue, showAssign = false }: { issue: any; showAssign?: boolean }) => (
-    <Card className={`glass-card glass-card-dark hover:shadow-lg transition-shadow ${
-      issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
-    }`}>
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <Badge className={getStatusBadge(issue.status)}>{issue.status}</Badge>
-              {issue.categories?.name && <Badge variant="outline">{issue.categories.name}</Badge>}
-              {issue.sos_flag && <Badge variant="destructive">SOS</Badge>}
-              {issue.severity_score && <Badge variant="outline" className="text-xs">Severity: {issue.severity_score}</Badge>}
-            </div>
-            <Link to={`/issue/${issue.id}`}>
-              <h3 className="font-semibold hover:text-primary transition-colors truncate">{issue.title}</h3>
-            </Link>
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{issue.description}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-              <span>By {issue.profiles?.name || 'Anonymous'}</span>
-              <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(issue.created_at).toLocaleDateString()}</span>
-              {issue.location_address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{issue.location_address}</span>}
-            </div>
-          </div>
-          {isOfficial && (
-            <div className="flex flex-col gap-2 shrink-0">
-              <Select value={issue.status} onValueChange={(val) => handleStatusChange(issue.id, val)}>
-                <SelectTrigger className="w-36 h-8 text-xs">
-                  <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Reported">Reported</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                  <SelectItem value="Escalated">Escalated</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
-              {showAssign && (
-                <Select onValueChange={(val) => handleAssignToOfficial(issue.id, val)}>
-                  <SelectTrigger className="w-36 h-8 text-xs">
-                    <SelectValue placeholder="Assign to..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {officials.map((o) => (
-                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {issue.assigned_to === user?.id && (
-                <Badge className="text-xs bg-primary/20 text-primary justify-center">Assigned to you</Badge>
-              )}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <div className="min-h-screen pt-24 px-4 pb-12">
       <div className="container mx-auto max-w-7xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className="text-4xl font-heading font-bold mb-2">Official Dashboard</h1>
-          <p className="text-muted-foreground">Issues grouped by assigned authority</p>
+          <h1 className="text-4xl font-heading font-bold mb-2">Authorities Dashboard</h1>
+          <p className="text-muted-foreground">View departments, their authorities, and assigned issues</p>
         </motion.div>
 
         {/* Stats */}
@@ -264,66 +228,150 @@ const Dashboard = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Unassigned Issues */}
             {unassignedIssues.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                    <Inbox className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-heading font-bold">Unassigned Issues</h2>
-                    <p className="text-xs text-muted-foreground">{unassignedIssues.length} issue{unassignedIssues.length !== 1 ? 's' : ''} awaiting assignment</p>
-                  </div>
-                </div>
-                <div className="space-y-3 ml-4 border-l-2 border-muted pl-4">
-                  {unassignedIssues.map((issue) => (
-                    <IssueCard key={issue.id} issue={issue} showAssign />
-                  ))}
-                </div>
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <Card
+                  className="glass-card glass-card-dark cursor-pointer hover:shadow-lg transition-all"
+                  onClick={() => setExpandedDept(expandedDept === '__unassigned' ? null : '__unassigned')}
+                >
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+                        <Inbox className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-heading font-bold">Unassigned Issues</h2>
+                        <p className="text-xs text-muted-foreground">Awaiting assignment to an authority</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-sm px-3 py-1">
+                        {unassignedIssues.length}
+                      </Badge>
+                      <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${expandedDept === '__unassigned' ? 'rotate-90' : ''}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <AnimatePresence>
+                  {expandedDept === '__unassigned' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="ml-6 mt-3 space-y-3 border-l-2 border-muted pl-4">
+                        {unassignedIssues.map((issue) => (
+                          <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} showAssign officials={officials} onAssign={handleAssignToOfficial} userId={user?.id} />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
 
-            {/* Officials with their assigned issues */}
-            {officials.map((official) => {
-              const officialIssues = getIssuesForOfficial(official.id);
-              return (
-                <motion.div key={official.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                      <UserCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-heading font-bold">{official.name}</h2>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{official.role}</Badge>
-                        {official.department_name && (
-                          <span className="text-xs text-muted-foreground">{official.department_name}</span>
-                        )}
-                        <span className="text-xs text-muted-foreground">• {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}</span>
+            {/* Department Cards */}
+            {departmentGroups.map((dept, i) => (
+              <motion.div key={dept.department_name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                <Card
+                  className="glass-card glass-card-dark cursor-pointer hover:shadow-lg transition-all"
+                  onClick={() => setExpandedDept(expandedDept === dept.department_name ? null : dept.department_name)}
+                >
+                  <CardContent className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-heading font-bold">{dept.department_name}</h2>
+                        <p className="text-xs text-muted-foreground">{dept.officials.length} official{dept.officials.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                  </div>
-                  {officialIssues.length > 0 ? (
-                    <div className="space-y-3 ml-4 border-l-2 border-primary/30 pl-4">
-                      {officialIssues.map((issue) => (
-                        <IssueCard key={issue.id} issue={issue} />
-                      ))}
+                    <div className="flex items-center gap-3">
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-sm px-3 py-1">
+                        {dept.issueCount} issue{dept.issueCount !== 1 ? 's' : ''}
+                      </Badge>
+                      <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${expandedDept === dept.department_name ? 'rotate-90' : ''}`} />
                     </div>
-                  ) : (
-                    <div className="ml-4 border-l-2 border-primary/30 pl-4">
-                      <p className="text-sm text-muted-foreground py-2">No issues assigned</p>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
+                  </CardContent>
+                </Card>
 
-            {issues.length === 0 && (
+                {/* Expanded: Show officials in this department */}
+                <AnimatePresence>
+                  {expandedDept === dept.department_name && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="ml-6 mt-3 space-y-3">
+                        {dept.officials.map((official) => {
+                          const officialIssues = getIssuesForOfficial(official.id);
+                          const isExpanded = expandedOfficial === official.id;
+                          return (
+                            <div key={official.id}>
+                              <Card
+                                className="glass-card cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50"
+                                onClick={(e) => { e.stopPropagation(); setExpandedOfficial(isExpanded ? null : official.id); }}
+                              >
+                                <CardContent className="p-4 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
+                                      <UserCircle className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                      <h3 className="font-semibold">{official.name}</h3>
+                                      <Badge variant="outline" className="text-xs mt-0.5">{official.role}</Badge>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <Badge variant="secondary" className="text-xs px-2 py-1">
+                                      {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}
+                                    </Badge>
+                                    <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                  </div>
+                                </CardContent>
+                              </Card>
+
+                              {/* Expanded: Show issues for this official */}
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="ml-6 mt-2 space-y-2 border-l-2 border-primary/20 pl-4 pb-2">
+                                      {officialIssues.length > 0 ? (
+                                        officialIssues.map((issue) => (
+                                          <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} userId={user?.id} />
+                                        ))
+                                      ) : (
+                                        <p className="text-sm text-muted-foreground py-3">No issues currently assigned</p>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+
+            {issues.length === 0 && departmentGroups.length === 0 && (
               <Card className="glass-card glass-card-dark p-12 text-center">
-                <h2 className="text-xl font-semibold mb-2">No issues found</h2>
-                <p className="text-muted-foreground">No issues match your current filters.</p>
+                <h2 className="text-xl font-semibold mb-2">No data found</h2>
+                <p className="text-muted-foreground">No authorities or issues to display.</p>
               </Card>
             )}
           </div>
@@ -332,5 +380,70 @@ const Dashboard = () => {
     </div>
   );
 };
+
+/* Compact issue row component */
+const IssueRow = ({ issue, getStatusBadge, isOfficialUser, onStatusChange, showAssign, officials, onAssign, userId }: {
+  issue: any;
+  getStatusBadge: (s: string) => string;
+  isOfficialUser: boolean | null | undefined;
+  onStatusChange: (id: string, status: string) => void;
+  showAssign?: boolean;
+  officials?: { id: string; name: string }[];
+  onAssign?: (issueId: string, officialId: string) => void;
+  userId?: string;
+}) => (
+  <Card className={`glass-card hover:shadow-md transition-shadow ${
+    issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
+  }`}>
+    <CardContent className="p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <Badge className={`${getStatusBadge(issue.status)} text-xs`}>{issue.status}</Badge>
+            {issue.categories?.name && <Badge variant="outline" className="text-xs">{issue.categories.name}</Badge>}
+            {issue.sos_flag && <Badge variant="destructive" className="text-xs">SOS</Badge>}
+            {issue.severity_score && <Badge variant="outline" className="text-[10px]">Sev: {issue.severity_score}</Badge>}
+          </div>
+          <Link to={`/issue/${issue.id}`} onClick={(e) => e.stopPropagation()}>
+            <h4 className="font-medium text-sm hover:text-primary transition-colors truncate">{issue.title}</h4>
+          </Link>
+          <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
+            <span>By {issue.profiles?.name || 'Anonymous'}</span>
+            <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(issue.created_at).toLocaleDateString()}</span>
+            {issue.location_address && <span className="flex items-center gap-1 truncate"><MapPin className="w-3 h-3" />{issue.location_address}</span>}
+          </div>
+        </div>
+        {isOfficialUser && (
+          <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Select value={issue.status} onValueChange={(val) => onStatusChange(issue.id, val)}>
+              <SelectTrigger className="w-32 h-7 text-xs">
+                <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Reported">Reported</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Resolved">Resolved</SelectItem>
+                <SelectItem value="Escalated">Escalated</SelectItem>
+                <SelectItem value="Closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            {showAssign && officials && onAssign && (
+              <Select onValueChange={(val) => onAssign(issue.id, val)}>
+                <SelectTrigger className="w-32 h-7 text-xs">
+                  <SelectValue placeholder="Assign to..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {officials.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export default Dashboard;
