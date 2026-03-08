@@ -5,7 +5,8 @@ import { ArrowRight, MessageSquare, Users, TrendingUp, Shield, Zap, MapPin } fro
 import { useAuth } from '@/contexts/AuthContext';
 
 const Home = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAuthority = profile?.role && profile.role !== 'Citizen';
 
   const features = [
     {
@@ -105,15 +106,27 @@ const Home = () => {
             transition={{ delay: 0.4 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <Link to={user ? "/report" : "/auth"}>
-              <Button 
-                size="lg" 
-                className="font-button text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-glow group"
-              >
-                {user ? 'Report an Issue' : 'Get Started'}
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
+            {isAuthority ? (
+              <Link to="/dashboard">
+                <Button 
+                  size="lg" 
+                  className="font-button text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-glow group"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            ) : (
+              <Link to={user ? "/report" : "/auth"}>
+                <Button 
+                  size="lg" 
+                  className="font-button text-lg px-8 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-all shadow-glow group"
+                >
+                  {user ? 'Report an Issue' : 'Get Started'}
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            )}
             <Link to="/feed">
               <Button 
                 size="lg" 
@@ -222,12 +235,12 @@ const Home = () => {
               Join thousands of citizens already using Civic Connect to improve their communities
             </p>
             
-            <Link to={user ? "/report" : "/auth"}>
+            <Link to={isAuthority ? "/dashboard" : (user ? "/report" : "/auth")}>
               <Button 
                 size="lg"
                 className="font-button text-lg px-10 py-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 animate-glow-pulse group"
               >
-                Start Now
+                {isAuthority ? 'View Dashboard' : 'Start Now'}
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
