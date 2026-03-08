@@ -17,6 +17,7 @@ export type Database = {
       categories: {
         Row: {
           created_at: string | null
+          department_id: string | null
           description: string | null
           icon: string | null
           id: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          department_id?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -31,12 +33,21 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          department_id?: string | null
           description?: string | null
           icon?: string | null
           id?: string
           name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       comments: {
         Row: {
