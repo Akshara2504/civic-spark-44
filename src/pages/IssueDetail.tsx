@@ -364,13 +364,13 @@ const IssueDetail = () => {
               >
                 <Avatar>
                   <AvatarFallback>
-                    {comment.profiles?.full_name?.[0] || 'U'}
+                    {comment.profiles?.name?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">
-                      {comment.profiles?.full_name || 'Anonymous'}
+                      {comment.profiles?.name || 'Anonymous'}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {new Date(comment.created_at).toLocaleDateString()}
