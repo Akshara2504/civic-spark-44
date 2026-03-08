@@ -9,6 +9,7 @@ import { Footer } from "@/components/Footer";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import Feed from "./pages/Feed";
+import MyIssues from "./pages/MyIssues";
 import Report from "./pages/Report";
 import About from "./pages/About";
 import IssueDetail from "./pages/IssueDetail";
