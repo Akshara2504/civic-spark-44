@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 import {
   Clock, CheckCircle, AlertTriangle, Eye, ArrowUpDown,
   Filter, RefreshCw, MapPin, Calendar, UserCircle, Inbox,
-  ChevronRight, Building2
+  ChevronRight, Building2, Droplets, Zap, Trash2, Shield,
+  TreePine, HeartPulse, HelpCircle, Car
 } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -21,21 +22,42 @@ interface Official {
   id: string;
   name: string;
   role: string | null;
-  department_name: string | null;
-  avatar_url: string | null;
+  department_id: string | null;
 }
 
-interface DepartmentGroup {
-  department_name: string;
-  officials: Official[];
-  issueCount: number;
+interface Department {
+  id: string;
+  name: string;
 }
+
+const DEPT_ICONS: Record<string, any> = {
+  'Roads & Transport Dept': Car,
+  'Water & Drainage Dept': Droplets,
+  'Electricity Dept': Zap,
+  'Waste Management Dept': Trash2,
+  'Public Safety Dept': Shield,
+  'Parks & Recreation Dept': TreePine,
+  'Health & Sanitation Dept': HeartPulse,
+  'General Services Dept': HelpCircle,
+};
+
+const DEPT_COLORS: Record<string, string> = {
+  'Roads & Transport Dept': 'from-amber-500 to-orange-600',
+  'Water & Drainage Dept': 'from-blue-500 to-cyan-600',
+  'Electricity Dept': 'from-yellow-400 to-yellow-600',
+  'Waste Management Dept': 'from-green-600 to-emerald-700',
+  'Public Safety Dept': 'from-red-500 to-rose-600',
+  'Parks & Recreation Dept': 'from-emerald-500 to-green-600',
+  'Health & Sanitation Dept': 'from-pink-500 to-rose-500',
+  'General Services Dept': 'from-slate-500 to-slate-600',
+};
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const [issues, setIssues] = useState<any[]>([]);
   const [officials, setOfficials] = useState<Official[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState({ total: 0, reported: 0, in_progress: 0, resolved: 0 });
@@ -60,15 +82,16 @@ const Dashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [officialsRes, issuesRes] = await Promise.all([
+      const [deptsRes, officialsRes, issuesRes] = await Promise.all([
+        supabase.from('departments').select('id, name').order('name'),
         supabase
           .from('profiles')
-          .select('id, name, role, avatar_url, department_id, departments:department_id (name)')
+          .select('id, name, role, department_id')
           .in('role', ['Official', 'HigherOfficial', 'Admin']),
         (() => {
           let query = supabase
             .from('issues')
-            .select(`*, profiles:user_id (name), categories (name, icon), assigned_profile:assigned_to (id, name, role)`)
+            .select(`*, profiles:user_id (name), categories (name, icon, department_id), assigned_profile:assigned_to (id, name, role, department_id)`)
             .order('sos_flag', { ascending: false })
             .order('severity_score', { ascending: false })
             .order('created_at', { ascending: false });
@@ -79,18 +102,12 @@ const Dashboard = () => {
         })()
       ]);
 
+      if (deptsRes.error) throw deptsRes.error;
       if (officialsRes.error) throw officialsRes.error;
       if (issuesRes.error) throw issuesRes.error;
 
-      const officialsList: Official[] = (officialsRes.data || []).map((o: any) => ({
-        id: o.id,
-        name: o.name,
-        role: o.role,
-        department_name: o.departments?.name || 'Unassigned Dept',
-        avatar_url: o.avatar_url,
-      }));
-
-      setOfficials(officialsList);
+      setDepartments(deptsRes.data || []);
+      setOfficials(officialsRes.data || []);
       setIssues(issuesRes.data || []);
 
       const all = issuesRes.data || [];
@@ -146,25 +163,20 @@ const Dashboard = () => {
     return styles[status] || 'bg-muted text-muted-foreground';
   };
 
+  // Issues for a department: assigned to officials in that dept OR category maps to that dept
+  const getIssuesForDept = (deptId: string) =>
+    issues.filter((i) =>
+      (i.assigned_profile?.department_id === deptId) ||
+      (i.categories?.department_id === deptId)
+    );
+
   const getIssuesForOfficial = (officialId: string) =>
     issues.filter((i) => i.assigned_to === officialId);
 
-  const unassignedIssues = issues.filter((i) => !i.assigned_to);
+  const getOfficialsForDept = (deptId: string) =>
+    officials.filter((o) => o.department_id === deptId);
 
-  // Group officials by department
-  const departmentGroups: DepartmentGroup[] = (() => {
-    const map = new Map<string, Official[]>();
-    officials.forEach((o) => {
-      const dept = o.department_name || 'Unassigned Dept';
-      if (!map.has(dept)) map.set(dept, []);
-      map.get(dept)!.push(o);
-    });
-    return Array.from(map.entries()).map(([dept, offs]) => ({
-      department_name: dept,
-      officials: offs,
-      issueCount: offs.reduce((sum, o) => sum + getIssuesForOfficial(o.id).length, 0),
-    }));
-  })();
+  const unassignedIssues = issues.filter((i) => !i.assigned_to && !i.categories?.department_id);
 
   const isOfficialUser = profile?.role && profile.role !== 'Citizen';
 
@@ -180,7 +192,7 @@ const Dashboard = () => {
       <div className="container mx-auto max-w-7xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="text-4xl font-heading font-bold mb-2">Authorities Dashboard</h1>
-          <p className="text-muted-foreground">View departments, their authorities, and assigned issues</p>
+          <p className="text-muted-foreground">Departments, their authorities, and assigned civic issues</p>
         </motion.div>
 
         {/* Stats */}
@@ -229,7 +241,144 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Unassigned Issues */}
+            {/* Department Cards */}
+            {departments.map((dept, i) => {
+              const deptOfficials = getOfficialsForDept(dept.id);
+              const deptIssues = getIssuesForDept(dept.id);
+              const DeptIcon = DEPT_ICONS[dept.name] || Building2;
+              const deptColor = DEPT_COLORS[dept.name] || 'from-primary to-secondary';
+              const isExpanded = expandedDept === dept.id;
+
+              return (
+                <motion.div key={dept.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
+                  <Card
+                    className={`glass-card glass-card-dark cursor-pointer hover:shadow-lg transition-all ${isExpanded ? 'ring-1 ring-primary/30' : ''}`}
+                    onClick={() => { setExpandedDept(isExpanded ? null : dept.id); setExpandedOfficial(null); }}
+                  >
+                    <CardContent className="p-5 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${deptColor} flex items-center justify-center shadow-lg`}>
+                          <DeptIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-heading font-bold">{dept.name}</h2>
+                          <p className="text-xs text-muted-foreground">
+                            {deptOfficials.length} official{deptOfficials.length !== 1 ? 's' : ''} assigned
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge className={`${deptIssues.length > 0 ? 'bg-primary/20 text-primary border-primary/30' : 'bg-muted text-muted-foreground'} text-sm px-3 py-1`}>
+                          {deptIssues.length} issue{deptIssues.length !== 1 ? 's' : ''}
+                        </Badge>
+                        <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-6 mt-3 space-y-3">
+                          {deptOfficials.length > 0 ? (
+                            deptOfficials.map((official) => {
+                              const officialIssues = getIssuesForOfficial(official.id);
+                              const isOfficialExpanded = expandedOfficial === official.id;
+                              return (
+                                <div key={official.id}>
+                                  <Card
+                                    className={`glass-card cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50 ${isOfficialExpanded ? 'ring-1 ring-primary/20' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setExpandedOfficial(isOfficialExpanded ? null : official.id); }}
+                                  >
+                                    <CardContent className="p-4 flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
+                                          <UserCircle className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                          <h3 className="font-semibold">{official.name}</h3>
+                                          <Badge variant="outline" className="text-xs mt-0.5">{official.role}</Badge>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <Badge variant="secondary" className="text-xs px-2 py-1">
+                                          {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                        <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${isOfficialExpanded ? 'rotate-90' : ''}`} />
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+
+                                  <AnimatePresence>
+                                    {isOfficialExpanded && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="ml-6 mt-2 space-y-2 border-l-2 border-primary/20 pl-4 pb-2">
+                                          {officialIssues.length > 0 ? (
+                                            officialIssues.map((issue) => (
+                                              <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} userId={user?.id} />
+                                            ))
+                                          ) : (
+                                            <p className="text-sm text-muted-foreground py-3">No issues currently assigned to this official</p>
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="p-4 text-sm text-muted-foreground border border-dashed border-muted rounded-lg text-center">
+                              No officials assigned to this department yet
+                            </div>
+                          )}
+
+                          {/* Show unassigned dept issues (routed by category but no official yet) */}
+                          {(() => {
+                            const unassignedDeptIssues = deptIssues.filter((i) => !i.assigned_to);
+                            if (unassignedDeptIssues.length === 0) return null;
+                            return (
+                              <div className="mt-3">
+                                <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                                  <Inbox className="w-4 h-4" /> Unassigned in this department ({unassignedDeptIssues.length})
+                                </h4>
+                                <div className="space-y-2 border-l-2 border-muted pl-4">
+                                  {unassignedDeptIssues.map((issue) => (
+                                    <IssueRow
+                                      key={issue.id}
+                                      issue={issue}
+                                      getStatusBadge={getStatusBadge}
+                                      isOfficialUser={isOfficialUser}
+                                      onStatusChange={handleStatusChange}
+                                      showAssign
+                                      officials={deptOfficials}
+                                      onAssign={handleAssignToOfficial}
+                                      userId={user?.id}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+
+            {/* Fully unassigned (no dept match) */}
             {unassignedIssues.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <Card
@@ -242,8 +391,8 @@ const Dashboard = () => {
                         <Inbox className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <h2 className="text-lg font-heading font-bold">Unassigned Issues</h2>
-                        <p className="text-xs text-muted-foreground">Awaiting assignment to an authority</p>
+                        <h2 className="text-lg font-heading font-bold">Uncategorized Issues</h2>
+                        <p className="text-xs text-muted-foreground">Not mapped to any department</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -262,7 +411,7 @@ const Dashboard = () => {
                       exit={{ opacity: 0, height: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="ml-6 mt-3 space-y-3 border-l-2 border-muted pl-4">
+                      <div className="ml-6 mt-3 space-y-2 border-l-2 border-muted pl-4">
                         {unassignedIssues.map((issue) => (
                           <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} showAssign officials={officials} onAssign={handleAssignToOfficial} userId={user?.id} />
                         ))}
@@ -273,105 +422,10 @@ const Dashboard = () => {
               </motion.div>
             )}
 
-            {/* Department Cards */}
-            {departmentGroups.map((dept, i) => (
-              <motion.div key={dept.department_name} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card
-                  className="glass-card glass-card-dark cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedDept(expandedDept === dept.department_name ? null : dept.department_name)}
-                >
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-heading font-bold">{dept.department_name}</h2>
-                        <p className="text-xs text-muted-foreground">{dept.officials.length} official{dept.officials.length !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className="bg-primary/20 text-primary border-primary/30 text-sm px-3 py-1">
-                        {dept.issueCount} issue{dept.issueCount !== 1 ? 's' : ''}
-                      </Badge>
-                      <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${expandedDept === dept.department_name ? 'rotate-90' : ''}`} />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Expanded: Show officials in this department */}
-                <AnimatePresence>
-                  {expandedDept === dept.department_name && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="ml-6 mt-3 space-y-3">
-                        {dept.officials.map((official) => {
-                          const officialIssues = getIssuesForOfficial(official.id);
-                          const isExpanded = expandedOfficial === official.id;
-                          return (
-                            <div key={official.id}>
-                              <Card
-                                className="glass-card cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary/50"
-                                onClick={(e) => { e.stopPropagation(); setExpandedOfficial(isExpanded ? null : official.id); }}
-                              >
-                                <CardContent className="p-4 flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-secondary/80 flex items-center justify-center">
-                                      <UserCircle className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                      <h3 className="font-semibold">{official.name}</h3>
-                                      <Badge variant="outline" className="text-xs mt-0.5">{official.role}</Badge>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <Badge variant="secondary" className="text-xs px-2 py-1">
-                                      {officialIssues.length} issue{officialIssues.length !== 1 ? 's' : ''}
-                                    </Badge>
-                                    <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                                  </div>
-                                </CardContent>
-                              </Card>
-
-                              {/* Expanded: Show issues for this official */}
-                              <AnimatePresence>
-                                {isExpanded && (
-                                  <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="overflow-hidden"
-                                  >
-                                    <div className="ml-6 mt-2 space-y-2 border-l-2 border-primary/20 pl-4 pb-2">
-                                      {officialIssues.length > 0 ? (
-                                        officialIssues.map((issue) => (
-                                          <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} userId={user?.id} />
-                                        ))
-                                      ) : (
-                                        <p className="text-sm text-muted-foreground py-3">No issues currently assigned</p>
-                                      )}
-                                    </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            ))}
-
-            {issues.length === 0 && departmentGroups.length === 0 && (
+            {issues.length === 0 && departments.length === 0 && (
               <Card className="glass-card glass-card-dark p-12 text-center">
                 <h2 className="text-xl font-semibold mb-2">No data found</h2>
-                <p className="text-muted-foreground">No authorities or issues to display.</p>
+                <p className="text-muted-foreground">No departments or issues to display.</p>
               </Card>
             )}
           </div>
@@ -381,7 +435,6 @@ const Dashboard = () => {
   );
 };
 
-/* Compact issue row component */
 const IssueRow = ({ issue, getStatusBadge, isOfficialUser, onStatusChange, showAssign, officials, onAssign, userId }: {
   issue: any;
   getStatusBadge: (s: string) => string;
@@ -392,9 +445,7 @@ const IssueRow = ({ issue, getStatusBadge, isOfficialUser, onStatusChange, showA
   onAssign?: (issueId: string, officialId: string) => void;
   userId?: string;
 }) => (
-  <Card className={`glass-card hover:shadow-md transition-shadow ${
-    issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
-  }`}>
+  <Card className={`glass-card hover:shadow-md transition-shadow ${issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''}`}>
     <CardContent className="p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
