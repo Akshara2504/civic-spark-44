@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Bell, User, AlertCircle } from 'lucide-react';
+import { Menu, X, Bell, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -66,18 +66,6 @@ export const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                {/* SOS Button */}
-                <Link to="/sos">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="animate-heartbeat font-button"
-                  >
-                    <AlertCircle className="w-4 h-4 mr-2" />
-                    SOS
-                  </Button>
-                </Link>
-
                 {/* Notifications */}
                 <Link to="/notifications">
                   <Button variant="ghost" size="icon">
@@ -169,12 +157,6 @@ export const Navbar = () => {
             ))}
             {user ? (
               <>
-                <Link to="/sos" onClick={() => setIsOpen(false)}>
-                  <Button variant="destructive" className="w-full font-button">
-                    <AlertCircle className="w-4 h-4 mr-2" />
-                    SOS
-                  </Button>
-                </Link>
                 <Button
                   onClick={() => {
                     signOut();
