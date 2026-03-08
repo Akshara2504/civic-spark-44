@@ -56,7 +56,7 @@ const SOS = () => {
       // Create issue with SOS flag
       const { data: issue, error: issueError } = await supabase
         .from('issues')
-        .insert({
+        .insert([{
           user_id: user.id,
           title: `🚨 SOS: ${description.substring(0, 50)}`,
           description,
@@ -66,8 +66,8 @@ const SOS = () => {
           location_lat: locationLat,
           location_lng: locationLng,
           location_address: locationAddress,
-          status: 'reported',
-        })
+          status: 'Reported' as const,
+        }])
         .select()
         .single();
 

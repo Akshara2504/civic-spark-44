@@ -11,13 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Loader2, Save, User, Globe } from 'lucide-react';
 
+import type { Database } from '@/integrations/supabase/types';
+
+type LangCode = Database['public']['Enums']['language_code'];
+
 const Settings = () => {
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [languagePref, setLanguagePref] = useState('en');
+  const [languagePref, setLanguagePref] = useState<LangCode>('en');
 
   useEffect(() => {
     if (!user) { navigate('/auth'); return; }

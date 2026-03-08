@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,6 +12,9 @@ import {
   Clock, CheckCircle, AlertTriangle, Eye, ArrowUpDown,
   Filter, RefreshCw, MapPin, Calendar
 } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
+
+type IssueStatus = Database['public']['Enums']['issue_status'];
 
 const Dashboard = () => {
   const { user, profile } = useAuth();
@@ -22,25 +25,21 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ total: 0, reported: 0, in_progress: 0, resolved: 0 });
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!user) { navigate('/auth'); return; }
     if (profile && profile.role === 'Citizen') {
       toast.error('Access denied. Officials only.');
       navigate('/feed');
       return;
     }
     fetchIssues();
-    setupRealtime();
+    const cleanup = setupRealtime();
+    return cleanup;
   }, [user, profile, statusFilter]);
 
   const setupRealtime = () => {
     const channel = supabase
       .channel('dashboard-issues')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => {
-        fetchIssues();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => fetchIssues())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   };
@@ -53,23 +52,20 @@ const Dashboard = () => {
         .select(`*, profiles:user_id (name), categories (name, icon)`)
         .order('created_at', { ascending: false });
 
-      // If official has a department, filter by category's department
-      // For now, show all issues for officials
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as IssueStatus);
       }
 
       const { data, error } = await query;
       if (error) throw error;
       setIssues(data || []);
 
-      // Calculate stats
       const all = data || [];
       setStats({
         total: all.length,
-        reported: all.filter((i: any) => i.status === 'reported').length,
-        in_progress: all.filter((i: any) => i.status === 'in_progress').length,
-        resolved: all.filter((i: any) => i.status === 'resolved').length,
+        reported: all.filter((i: any) => i.status === 'Reported').length,
+        in_progress: all.filter((i: any) => i.status === 'In Progress').length,
+        resolved: all.filter((i: any) => i.status === 'Resolved').length,
       });
     } catch (error) {
       console.error('Error fetching issues:', error);
@@ -82,11 +78,11 @@ const Dashboard = () => {
     try {
       const { error } = await supabase
         .from('issues')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: newStatus as IssueStatus, updated_at: new Date().toISOString() })
         .eq('id', issueId);
 
       if (error) throw error;
-      toast.success(`Issue status updated to ${newStatus.replace('_', ' ')}`);
+      toast.success(`Issue status updated to ${newStatus}`);
       fetchIssues();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -99,7 +95,7 @@ const Dashboard = () => {
     try {
       const { error } = await supabase
         .from('issues')
-        .update({ assigned_to: user.id, status: 'in_progress', updated_at: new Date().toISOString() })
+        .update({ assigned_to: user.id, status: 'In Progress' as IssueStatus, updated_at: new Date().toISOString() })
         .eq('id', issueId);
 
       if (error) throw error;
@@ -113,10 +109,11 @@ const Dashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      reported: 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30',
-      in_progress: 'bg-blue-500/20 text-blue-700 border-blue-500/30',
-      resolved: 'bg-green-500/20 text-green-700 border-green-500/30',
-      rejected: 'bg-red-500/20 text-red-700 border-red-500/30',
+      Reported: 'bg-yellow-500/20 text-yellow-700 border-yellow-500/30',
+      'In Progress': 'bg-blue-500/20 text-blue-700 border-blue-500/30',
+      Resolved: 'bg-green-500/20 text-green-700 border-green-500/30',
+      Closed: 'bg-muted text-muted-foreground',
+      Escalated: 'bg-red-500/20 text-red-700 border-red-500/30',
     };
     return styles[status] || 'bg-muted text-muted-foreground';
   };
@@ -133,12 +130,9 @@ const Dashboard = () => {
       <div className="container mx-auto max-w-7xl">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <h1 className="text-4xl font-heading font-bold mb-2">Official Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage and resolve community issues assigned to your department
-          </p>
+          <p className="text-muted-foreground">Manage and resolve community issues assigned to your department</p>
         </motion.div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {statCards.map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
@@ -157,7 +151,6 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex items-center gap-4 mb-6">
           <Filter className="w-5 h-5 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -166,19 +159,18 @@ const Dashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Issues</SelectItem>
-              <SelectItem value="reported">Reported</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="Reported">Reported</SelectItem>
+              <SelectItem value="In Progress">In Progress</SelectItem>
+              <SelectItem value="Resolved">Resolved</SelectItem>
+              <SelectItem value="Escalated">Escalated</SelectItem>
+              <SelectItem value="Closed">Closed</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={fetchIssues}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
           </Button>
         </div>
 
-        {/* Issues Table */}
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -191,76 +183,42 @@ const Dashboard = () => {
         ) : (
           <div className="space-y-4">
             {issues.map((issue, i) => (
-              <motion.div
-                key={issue.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
+              <motion.div key={issue.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
                 <Card className="glass-card glass-card-dark hover:shadow-lg transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge className={getStatusBadge(issue.status)}>
-                            {issue.status?.replace('_', ' ')}
-                          </Badge>
-                          {issue.categories?.name && (
-                            <Badge variant="outline">{issue.categories.name}</Badge>
-                          )}
-                          {issue.sos_flag && (
-                            <Badge variant="destructive">SOS</Badge>
-                          )}
-                          {issue.severity_score && (
-                            <Badge variant="outline" className="text-xs">
-                              Severity: {issue.severity_score}
-                            </Badge>
-                          )}
+                          <Badge className={getStatusBadge(issue.status)}>{issue.status}</Badge>
+                          {issue.categories?.name && <Badge variant="outline">{issue.categories.name}</Badge>}
+                          {issue.sos_flag && <Badge variant="destructive">SOS</Badge>}
+                          {issue.severity_score && <Badge variant="outline" className="text-xs">Severity: {issue.severity_score}</Badge>}
                         </div>
                         <Link to={`/issue/${issue.id}`}>
-                          <h3 className="font-semibold text-lg hover:text-primary transition-colors truncate">
-                            {issue.title}
-                          </h3>
+                          <h3 className="font-semibold text-lg hover:text-primary transition-colors truncate">{issue.title}</h3>
                         </Link>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                          {issue.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{issue.description}</p>
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                           <span>By {issue.profiles?.name || 'Anonymous'}</span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(issue.created_at).toLocaleDateString()}
-                          </span>
-                          {issue.location_address && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {issue.location_address}
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{new Date(issue.created_at).toLocaleDateString()}</span>
+                          {issue.location_address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{issue.location_address}</span>}
                         </div>
                       </div>
-
                       <div className="flex flex-col gap-2 shrink-0">
-                        <Select
-                          value={issue.status}
-                          onValueChange={(val) => handleStatusChange(issue.id, val)}
-                        >
+                        <Select value={issue.status} onValueChange={(val) => handleStatusChange(issue.id, val)}>
                           <SelectTrigger className="w-36 h-8 text-xs">
-                            <ArrowUpDown className="w-3 h-3 mr-1" />
-                            <SelectValue />
+                            <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="reported">Reported</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="Reported">Reported</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Resolved">Resolved</SelectItem>
+                            <SelectItem value="Escalated">Escalated</SelectItem>
+                            <SelectItem value="Closed">Closed</SelectItem>
                           </SelectContent>
                         </Select>
-
                         {!issue.assigned_to && (
-                          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleAssignToSelf(issue.id)}>
-                            Assign to Me
-                          </Button>
+                          <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => handleAssignToSelf(issue.id)}>Assign to Me</Button>
                         )}
                         {issue.assigned_to === user?.id && (
                           <Badge className="text-xs bg-primary/20 text-primary justify-center">Assigned to you</Badge>
