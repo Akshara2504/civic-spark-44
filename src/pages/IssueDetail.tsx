@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, MapPin, Calendar, ThumbsUp, ThumbsDown, 
   MessageCircle, AlertTriangle, CheckCircle, Clock,
-  ShieldAlert, Flame, Users, Timer, Zap
+  ShieldAlert, Flame, Users, Timer, Zap, CircleCheckBig
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -189,6 +189,26 @@ const IssueDetail = () => {
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
+    }
+  };
+
+  const handleMarkResolved = async () => {
+    if (!user || issue.user_id !== user.id) {
+      toast.error('Only the reporter can mark this as resolved');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('issues')
+        .update({ status: 'Resolved' as any, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast.success('Issue marked as resolved! Thank you for confirming.');
+      fetchIssueDetails();
+    } catch (error) {
+      console.error('Error marking resolved:', error);
+      toast.error('Failed to update issue status');
     }
   };
 
@@ -417,8 +437,40 @@ const IssueDetail = () => {
             </div>
           )}
 
+          {/* Citizen Resolution Confirmation */}
+          {user && issue.user_id === user.id && issue.status !== 'Resolved' && issue.status !== 'Closed' && (
+            <div className="mt-6 p-5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5">
+              <div className="flex items-center gap-3 mb-3">
+                <CircleCheckBig className="w-6 h-6 text-primary" />
+                <h3 className="font-semibold text-lg">Has this issue been resolved?</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                As the person who reported this issue, you can confirm that it has been resolved. 
+                This will update the status and reflect on the assigned authority's profile.
+              </p>
+              <Button 
+                onClick={handleMarkResolved}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Yes, this issue is resolved
+              </Button>
+            </div>
+          )}
+
+          {/* Already resolved banner */}
+          {(issue.status === 'Resolved' || issue.status === 'Closed') && (
+            <div className="mt-6 p-4 rounded-xl border border-green-500/30 bg-green-500/10 flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-green-500" />
+              <div>
+                <h3 className="font-semibold text-green-700 dark:text-green-400">Issue Resolved</h3>
+                <p className="text-sm text-muted-foreground">This issue has been confirmed as resolved.</p>
+              </div>
+            </div>
+          )}
+
           {/* Stats */}
-          <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground border-t pt-4 mt-4">
             <span className="flex items-center gap-1">
               <MessageCircle className="w-4 h-4" />
               {comments.length} Comments
