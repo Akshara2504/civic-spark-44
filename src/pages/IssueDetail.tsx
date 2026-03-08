@@ -192,19 +192,20 @@ const IssueDetail = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'reported': return 'bg-yellow-500';
-      case 'in_progress': return 'bg-blue-500';
-      case 'resolved': return 'bg-green-500';
-      case 'rejected': return 'bg-red-500';
-      default: return 'bg-gray-500';
+      case 'Reported': return 'bg-yellow-500';
+      case 'In Progress': return 'bg-blue-500';
+      case 'Resolved': return 'bg-green-500';
+      case 'Escalated': return 'bg-red-500';
+      case 'Closed': return 'bg-muted';
+      default: return 'bg-muted';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'reported': return <Clock className="w-4 h-4" />;
-      case 'in_progress': return <AlertTriangle className="w-4 h-4" />;
-      case 'resolved': return <CheckCircle className="w-4 h-4" />;
+      case 'Reported': return <Clock className="w-4 h-4" />;
+      case 'In Progress': return <AlertTriangle className="w-4 h-4" />;
+      case 'Resolved': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
