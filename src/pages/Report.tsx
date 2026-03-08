@@ -34,15 +34,15 @@ const Report = () => {
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi' | 'te'>('en');
+  const [categories, setCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
 
-  const categories = [
-    { id: '1', name: 'Roads', icon: '🛣️' },
-    { id: '2', name: 'Water', icon: '💧' },
-    { id: '3', name: 'Electricity', icon: '⚡' },
-    { id: '4', name: 'Sanitation', icon: '🗑️' },
-    { id: '5', name: 'Safety', icon: '🚨' },
-    { id: '6', name: 'Other', icon: '📋' },
-  ];
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('id, name, icon').order('name');
+      if (data) setCategories(data);
+    };
+    fetchCategories();
+  }, []);
 
   const handleVoiceTranscript = (transcript: string) => {
     setDescription(transcript);
