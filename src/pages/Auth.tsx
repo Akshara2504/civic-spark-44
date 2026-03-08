@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users, Shield } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<'Citizen' | 'Authority'>('Citizen');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,7 +24,6 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && profile) {
-      // Redirect based on role
       switch (profile.role) {
         case 'Admin':
           navigate('/settings');
@@ -67,6 +68,8 @@ const Auth = () => {
     }));
   };
 
+  const isAuthority = role === 'Authority';
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
       {/* Background gradient */}
@@ -78,14 +81,40 @@ const Auth = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="glass-card glass-card-dark shadow-glow">
+        <Card className={`glass-card glass-card-dark shadow-glow ${isAuthority ? 'ring-2 ring-primary/40' : ''}`}>
           <CardHeader className="space-y-1">
+            {/* Role Selector */}
+            <div className="flex gap-2 mb-4">
+              <Button
+                type="button"
+                variant={!isAuthority ? 'default' : 'outline'}
+                className={`flex-1 font-button ${!isAuthority ? 'bg-gradient-to-r from-primary to-secondary' : ''}`}
+                onClick={() => setRole('Citizen')}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Citizen
+              </Button>
+              <Button
+                type="button"
+                variant={isAuthority ? 'default' : 'outline'}
+                className={`flex-1 font-button ${isAuthority ? 'bg-gradient-to-r from-primary to-secondary' : ''}`}
+                onClick={() => setRole('Authority')}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Authority
+              </Button>
+            </div>
+
             <CardTitle className="text-3xl font-heading font-bold text-center">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin 
+                ? (isAuthority ? 'Authority Login' : 'Welcome Back') 
+                : 'Create Account'}
             </CardTitle>
             <CardDescription className="text-center">
               {isLogin 
-                ? 'Sign in to your account to continue' 
+                ? (isAuthority 
+                    ? 'Sign in with your official credentials' 
+                    : 'Sign in to your account to continue')
                 : 'Join Civic Connect and make a difference'}
             </CardDescription>
           </CardHeader>
@@ -107,12 +136,14 @@ const Auth = () => {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">
+                  {isAuthority ? 'Official Email' : 'Email'}
+                </Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={isAuthority ? 'official@gov.in' : 'you@example.com'}
                   value={formData.email}
                   onChange={handleChange}
                   required
@@ -146,10 +177,18 @@ const Auth = () => {
                     Please wait
                   </>
                 ) : (
-                  isLogin ? 'Sign In' : 'Create Account'
+                  isLogin 
+                    ? (isAuthority ? 'Sign In as Authority' : 'Sign In') 
+                    : 'Create Account'
                 )}
               </Button>
             </form>
+
+            {isAuthority && isLogin && (
+              <p className="mt-4 text-xs text-center text-muted-foreground">
+                Authority accounts are pre-assigned by the admin. Use your official email to sign in.
+              </p>
+            )}
 
             <div className="mt-6 text-center text-sm">
               <button
