@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { 
   ArrowLeft, MapPin, Calendar, ThumbsUp, ThumbsDown, 
   MessageCircle, AlertTriangle, CheckCircle, Clock,
-  ShieldAlert, Flame, Users, Timer, Zap
+  ShieldAlert, Flame, Users, Timer, Zap, CircleCheckBig
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
