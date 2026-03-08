@@ -50,6 +50,8 @@ const Dashboard = () => {
       let query = supabase
         .from('issues')
         .select(`*, profiles:user_id (name), categories (name, icon)`)
+        .order('sos_flag', { ascending: false })
+        .order('severity_score', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'all') {
