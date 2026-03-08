@@ -21,7 +21,7 @@ const IssueDetail = () => {
   const [issue, setIssue] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [userVote, setUserVote] = useState<'upvote' | 'downvote' | null>(null);
+  const [userVote, setUserVote] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
