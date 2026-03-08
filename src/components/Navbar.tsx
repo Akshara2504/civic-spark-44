@@ -23,7 +23,7 @@ export const Navbar = () => {
     { name: 'Feed', path: '/feed' },
     { name: 'My Issues', path: '/my-issues', auth: true },
     { name: 'Report Issue', path: '/report' },
-    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Pulse Board', path: '/dashboard' },
     { name: 'About', path: '/about' },
   ].filter(item => !('auth' in item) || (item.auth && user));
 
