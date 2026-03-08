@@ -91,7 +91,7 @@ const IssueDetail = () => {
         .from('comments')
         .select(`
           *,
-          profiles:user_id (full_name)
+          profiles:user_id (name)
         `)
         .eq('issue_id', id)
         .order('created_at', { ascending: false });
