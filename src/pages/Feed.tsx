@@ -153,7 +153,9 @@ const Feed = () => {
                 transition={{ delay: i * 0.05 }}
               >
                 <Link to={`/issue/${issue.id}`}>
-                  <Card className="glass-card glass-card-dark hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer h-full">
+                  <Card className={`glass-card glass-card-dark hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer h-full ${
+                    issue.sos_flag ? 'ring-2 ring-destructive/60 border-destructive/40' : ''
+                  }`}>
                     <CardContent className="p-4">
                       {/* Media preview */}
                       {issue.media_urls && issue.media_urls.length > 0 && (
