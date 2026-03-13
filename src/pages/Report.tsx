@@ -125,8 +125,8 @@ const Report = () => {
       console.error('AI SOS check error:', error);
       return {
         is_sos: false,
-        severity_score: 3,
-        severity_base: 3,
+        severity_score: 2,
+        severity_base: 1,
         reasoning: 'AI check unavailable',
         risk_factors: [],
         recommended_priority: 'normal',
