@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Mail, Phone, MapPin } from 'lucide-react';
+import { useTranslation } from '@/i18n/useTranslation';
 
 export const Footer = () => {
+  const { t } = useTranslation();
+
   return (
     <footer className="bg-dark-bg text-dark-fg py-12 mt-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -13,32 +16,32 @@ export const Footer = () => {
               Civic Connect
             </h3>
             <p className="text-sm text-muted-foreground">
-              Empowering communities to create positive change, one report at a time.
+              {t('footer.tagline')}
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-heading font-semibold mb-4">Quick Links</h4>
+            <h4 className="font-heading font-semibold mb-4">{t('footer.quickLinks')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link to="/" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Home
+                  {t('nav.home')}
                 </Link>
               </li>
               <li>
                 <Link to="/feed" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Community Feed
+                  {t('footer.communityFeed')}
                 </Link>
               </li>
               <li>
                 <Link to="/report" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Report Issue
+                  {t('nav.reportIssue')}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="text-muted-foreground hover:text-secondary transition-colors">
-                  About Us
+                  {t('nav.about')}
                 </Link>
               </li>
             </ul>
@@ -46,26 +49,26 @@ export const Footer = () => {
 
           {/* Support */}
           <div>
-            <h4 className="font-heading font-semibold mb-4">Support</h4>
+            <h4 className="font-heading font-semibold mb-4">{t('footer.support')}</h4>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link to="/about" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Help Center
+                  {t('footer.helpCenter')}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Privacy Policy
+                  {t('footer.privacyPolicy')}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Terms of Service
+                  {t('footer.termsOfService')}
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="text-muted-foreground hover:text-secondary transition-colors">
-                  Contact Us
+                  {t('footer.contactUs')}
                 </Link>
               </li>
             </ul>
@@ -73,7 +76,7 @@ export const Footer = () => {
 
           {/* Contact */}
           <div>
-            <h4 className="font-heading font-semibold mb-4">Contact</h4>
+            <h4 className="font-heading font-semibold mb-4">{t('footer.contact')}</h4>
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Mail className="w-4 h-4" />
@@ -99,10 +102,10 @@ export const Footer = () => {
           className="mt-12 pt-8 border-t border-border/10 flex flex-col md:flex-row justify-between items-center gap-4"
         >
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Civic Connect. All rights reserved.
+            © {new Date().getFullYear()} Civic Connect. {t('footer.rights')}
           </p>
           <p className="text-sm text-muted-foreground flex items-center gap-1">
-            Made with <Heart className="w-4 h-4 text-accent fill-accent" /> for communities
+            {t('footer.madeWith')} <Heart className="w-4 h-4 text-accent fill-accent" /> {t('footer.forCommunities')}
           </p>
         </motion.div>
       </div>
