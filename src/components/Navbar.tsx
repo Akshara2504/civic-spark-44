@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, Bell, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,20 +18,21 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
+  const { t } = useTranslation();
 
   const isAuthority = profile?.role && profile.role !== 'Citizen';
 
   const navItems = [
-    { name: 'Home', path: '/' },
+    { name: t('nav.home'), path: '/' },
     ...(user ? [
-      { name: 'Feed', path: '/feed' },
+      { name: t('nav.feed'), path: '/feed' },
       ...(!isAuthority ? [
-        { name: 'My Issues', path: '/my-issues' },
-        { name: 'Report Issue', path: '/report' },
+        { name: t('nav.myIssues'), path: '/my-issues' },
+        { name: t('nav.reportIssue'), path: '/report' },
       ] : []),
-      { name: 'Authority Hub', path: '/dashboard' },
+      { name: t('nav.authorityHub'), path: '/dashboard' },
     ] : []),
-    { name: 'About', path: '/about' },
+    { name: t('nav.about'), path: '/about' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -43,7 +45,6 @@ export const Navbar = () => {
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -53,7 +54,6 @@ export const Navbar = () => {
             </motion.div>
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link
@@ -70,18 +70,15 @@ export const Navbar = () => {
             ))}
           </div>
 
-          {/* Right Actions */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
               <>
-                {/* Notifications */}
                 <Link to="/notifications">
                   <Button variant="ghost" size="icon">
                     <Bell className="w-5 h-5" />
                   </Button>
                 </Link>
 
-                {/* User Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
@@ -99,20 +96,20 @@ export const Navbar = () => {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to={`/profile/${user.id}`}>Profile</Link>
+                      <Link to={`/profile/${user.id}`}>{t('nav.profile')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/my-issues">My Issues</Link>
+                      <Link to="/my-issues">{t('nav.myIssues')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/dashboard">Dashboard</Link>
+                      <Link to="/dashboard">{t('nav.dashboard')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link to="/settings">Settings</Link>
+                      <Link to="/settings">{t('nav.settings')}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut}>
-                      Sign Out
+                      {t('nav.signOut')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -121,19 +118,18 @@ export const Navbar = () => {
               <>
                 <Link to="/auth">
                   <Button variant="ghost" className="font-button">
-                    Sign In
+                    {t('nav.signIn')}
                   </Button>
                 </Link>
                 <Link to="/auth">
                   <Button className="font-button bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                    Get Started
+                    {t('nav.getStarted')}
                   </Button>
                 </Link>
               </>
             )}
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden p-2 rounded-lg hover:bg-muted"
@@ -142,7 +138,6 @@ export const Navbar = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -165,21 +160,19 @@ export const Navbar = () => {
               </Link>
             ))}
             {user ? (
-              <>
-                <Button
-                  onClick={() => {
-                    signOut();
-                    setIsOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full font-button"
-                >
-                  Sign Out
-                </Button>
-              </>
+              <Button
+                onClick={() => {
+                  signOut();
+                  setIsOpen(false);
+                }}
+                variant="outline"
+                className="w-full font-button"
+              >
+                {t('nav.signOut')}
+              </Button>
             ) : (
               <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button className="w-full font-button">Get Started</Button>
+                <Button className="w-full font-button">{t('nav.getStarted')}</Button>
               </Link>
             )}
           </motion.div>

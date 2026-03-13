@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Users, Shield } from 'lucide-react';
+import { useTranslation } from '@/i18n/useTranslation';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,6 +21,7 @@ const Auth = () => {
   
   const { signIn, signUp, user, profile } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (user && profile) {
@@ -43,18 +44,11 @@ const Auth = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (isLogin) {
-        const { error } = await signIn(formData.email, formData.password);
-        if (!error) {
-          // Navigation handled by useEffect
-        }
+        await signIn(formData.email, formData.password);
       } else {
-        const { error } = await signUp(formData.email, formData.password, formData.name);
-        if (!error) {
-          // Navigation handled by useEffect
-        }
+        await signUp(formData.email, formData.password, formData.name);
       }
     } finally {
       setLoading(false);
@@ -62,17 +56,13 @@ const Auth = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const isAuthority = role === 'Authority';
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/5 to-lavender/10 -z-10" />
       
       <motion.div
@@ -83,7 +73,6 @@ const Auth = () => {
       >
         <Card className={`glass-card glass-card-dark shadow-glow ${isAuthority ? 'ring-2 ring-primary/40' : ''}`}>
           <CardHeader className="space-y-1">
-            {/* Role Selector */}
             <div className="flex gap-2 mb-4">
               <Button
                 type="button"
@@ -92,7 +81,7 @@ const Auth = () => {
                 onClick={() => setRole('Citizen')}
               >
                 <Users className="w-4 h-4 mr-2" />
-                Citizen
+                {t('auth.citizen')}
               </Button>
               <Button
                 type="button"
@@ -101,28 +90,26 @@ const Auth = () => {
                 onClick={() => setRole('Authority')}
               >
                 <Shield className="w-4 h-4 mr-2" />
-                Authority
+                {t('auth.authority')}
               </Button>
             </div>
 
             <CardTitle className="text-3xl font-heading font-bold text-center">
               {isLogin 
-                ? (isAuthority ? 'Authority Login' : 'Welcome Back') 
-                : 'Create Account'}
+                ? (isAuthority ? t('auth.authorityLogin') : t('auth.welcomeBack')) 
+                : t('auth.createAccount')}
             </CardTitle>
             <CardDescription className="text-center">
               {isLogin 
-                ? (isAuthority 
-                    ? 'Sign in with your official credentials' 
-                    : 'Sign in to your account to continue')
-                : 'Join Civic Connect and make a difference'}
+                ? (isAuthority ? t('auth.authorityDesc') : t('auth.signInDesc'))
+                : t('auth.joinDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">{t('auth.fullName')}</Label>
                   <Input
                     id="name"
                     name="name"
@@ -137,7 +124,7 @@ const Auth = () => {
               
               <div className="space-y-2">
                 <Label htmlFor="email">
-                  {isAuthority ? 'Official Email' : 'Email'}
+                  {isAuthority ? t('auth.officialEmail') : t('auth.email')}
                 </Label>
                 <Input
                   id="email"
@@ -152,7 +139,7 @@ const Auth = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t('auth.password')}</Label>
                 <Input
                   id="password"
                   name="password"
@@ -174,19 +161,19 @@ const Auth = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Please wait
+                    {t('auth.pleaseWait')}
                   </>
                 ) : (
                   isLogin 
-                    ? (isAuthority ? 'Sign In as Authority' : 'Sign In') 
-                    : 'Create Account'
+                    ? (isAuthority ? t('auth.signInAsAuthority') : t('auth.signIn')) 
+                    : t('auth.createAccount')
                 )}
               </Button>
             </form>
 
             {isAuthority && isLogin && (
               <p className="mt-4 text-xs text-center text-muted-foreground">
-                Authority accounts are pre-assigned by the admin. Use your official email to sign in.
+                {t('auth.authorityNote')}
               </p>
             )}
 
@@ -197,9 +184,7 @@ const Auth = () => {
                 className="text-primary hover:underline font-medium"
                 disabled={loading}
               >
-                {isLogin 
-                  ? "Don't have an account? Sign up" 
-                  : "Already have an account? Sign in"}
+                {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
               </button>
             </div>
           </CardContent>
