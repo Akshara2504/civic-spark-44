@@ -18,31 +18,38 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `Analyze this civic issue report and assess its severity CONSERVATIVELY.
+    const prompt = `You are a STRICT and CONSERVATIVE civic issue severity assessor. Your job is to assign LOW severity scores to routine problems.
 
-ISSUE:
+ISSUE TO ASSESS:
 - Title: ${title || 'Not provided'}
 - Description: ${description || 'Not provided'}
 - Location: ${locationAddress || 'Not provided'}
 - Coordinates: ${locationLat && locationLng ? `${locationLat}, ${locationLng}` : 'Not provided'}
 - Images attached: ${mediaUrls?.length || 0}
 
-MANDATORY SEVERITY SCALE - follow EXACTLY:
-- severity_score 1-2: Minor inconvenience (noise, park maintenance, minor litter)
-- severity_score 2-3: Routine civic issue (potholes, garbage not collected, broken streetlight, stray animals, graffiti)
-- severity_score 3-4: Moderate issue (water pipe leak, blocked drain, damaged road, broken traffic sign)
-- severity_score 4-5: Significant issue (traffic signal failure, minor flooding, large road damage)
-- severity_score 5-6: Serious issue (sewage overflow, major road hazard, water supply disruption)
-- severity_score 7-8: Emergency (exposed live wires in public area, gas leak, bridge damage, toxic spill)
-- severity_score 9-10: Critical emergency (building collapse, fire, major structural failure with people at risk)
+SEVERITY SCALE - BE VERY STRICT:
+- severity_score 1: Cosmetic/trivial (minor graffiti, small litter, cosmetic damage)
+- severity_score 2: Minor inconvenience (noise complaint, park bench needs paint, minor litter, dust)
+- severity_score 3: Routine civic issue (pothole, garbage not collected, broken streetlight, stray animals, graffiti, parking issue, footpath crack)
+- severity_score 4: Moderate issue (water pipe leak, blocked drain, damaged road section, broken traffic sign, overflowing dustbin)
+- severity_score 5: Significant issue (traffic signal failure at busy junction, minor flooding, large road damage affecting traffic)
+- severity_score 6: Serious issue (sewage overflow in residential area, major road hazard, water supply cut to area)
+- severity_score 7: Dangerous (exposed live wires in public, small gas leak, bridge structural damage)
+- severity_score 8: Emergency (large gas leak, toxic chemical spill, major structural failure)
+- severity_score 9-10: Critical life-threatening emergency (building collapse with people inside, active fire spreading, mass casualty situation)
 
-CRITICAL RULES:
-- Garbage, waste, sanitation complaints = severity 2-3 MAX, NEVER higher
-- Potholes, road issues = severity 2-3 MAX
-- Water leaks, drainage = severity 3-4 MAX
-- is_sos MUST be false unless severity_score >= 7
-- ONLY life-threatening situations get severity >= 7
-- Default assumption: the issue is routine (severity 2-3)`;
+CRITICAL RULES YOU MUST FOLLOW:
+1. DEFAULT assumption: every issue is routine = severity 2-3
+2. Garbage, waste, trash, litter, dustbin = severity 2-3, NEVER above 4
+3. Potholes, road cracks, bumps = severity 2-3, NEVER above 4
+4. Streetlight, broken light = severity 2-3, NEVER above 3
+5. Noise, parking, minor maintenance = severity 1-2
+6. Water leak (minor) = severity 3-4
+7. Stray animals, graffiti = severity 2
+8. is_sos MUST be false unless severity_score >= 7
+9. severity_base should be 1-3 for most issues, max 5 only for true emergencies
+10. When in doubt, go LOWER not higher
+11. Do NOT inflate severity just because the reporter sounds urgent or emotional`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +60,7 @@ CRITICAL RULES:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a strict civic issue severity assessor. You MUST use the tool to respond. Most issues are routine (severity 2-3). Only genuine life-threatening emergencies score 7+." },
+          { role: "system", content: "You assess civic issue severity CONSERVATIVELY. Most issues are mundane and routine (severity 2-3). You almost never assign severity above 5. Only genuine life-threatening emergencies get 7+. You MUST use the tool to respond." },
           { role: "user", content: prompt }
         ],
         tools: [
@@ -61,15 +68,15 @@ CRITICAL RULES:
             type: "function",
             function: {
               name: "assess_severity",
-              description: "Assess the severity of a civic issue report. Most routine issues (garbage, potholes, streetlights) should score 2-3.",
+              description: "Assess severity of a civic issue. Most routine issues (garbage, potholes, streetlights, noise) = severity 2-3. Only life-threatening = 7+.",
               parameters: {
                 type: "object",
                 properties: {
-                  is_sos: { type: "boolean", description: "true ONLY if severity_score >= 7 and there is immediate danger to life" },
-                  severity_score: { type: "number", description: "1-10 scale. Most issues should be 2-4. Only life-threatening = 7+" },
-                  severity_base: { type: "number", description: "1-5 scale. Most issues should be 2-3." },
-                  reasoning: { type: "string", description: "Brief explanation of the severity assessment" },
-                  risk_factors: { type: "array", items: { type: "string" }, description: "List of identified risks, empty if routine" },
+                  is_sos: { type: "boolean", description: "true ONLY if severity_score >= 7 AND there is immediate danger to human life" },
+                  severity_score: { type: "number", description: "1-10. Most issues = 2-3. Above 5 is rare. Above 7 is almost never." },
+                  severity_base: { type: "number", description: "1-5. Most issues = 1-2. Only emergencies = 4-5." },
+                  reasoning: { type: "string", description: "Brief explanation" },
+                  risk_factors: { type: "array", items: { type: "string" }, description: "List of risks, empty for routine issues" },
                   estimated_affected_people: { type: "string", enum: ["none", "few", "moderate", "many", "critical"] },
                   time_sensitivity: { type: "string", enum: ["low", "medium", "high", "critical"] },
                   recommended_priority: { type: "string", enum: ["normal", "elevated", "high", "urgent", "critical"] }
@@ -95,45 +102,74 @@ CRITICAL RULES:
 
     const data = await response.json();
     
-    // Extract from tool call response
     let result;
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       result = JSON.parse(toolCall.function.arguments);
     } else {
-      // Fallback: try parsing content directly
       const content = data.choices?.[0]?.message?.content || "";
       const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       result = JSON.parse(cleaned);
     }
 
-    // ENFORCE severity caps in code as a safety net
-    let severityScore = Math.min(10, Math.max(1, Number(result.severity_score) || 3));
+    let severityScore = Math.min(10, Math.max(1, Number(result.severity_score) || 2));
     let severityBase = Math.min(5, Math.max(1, Number(result.severity_base) || 2));
     
-    // Check for known routine keywords - cap severity
-    const lowerTitle = (title || '').toLowerCase();
-    const lowerDesc = (description || '').toLowerCase();
-    const combined = lowerTitle + ' ' + lowerDesc;
+    // Keyword-based severity caps - STRICT enforcement
+    const combined = `${(title || '').toLowerCase()} ${(description || '').toLowerCase()}`;
     
+    // Tier 1: Very minor issues - cap at 2
+    const trivialKeywords = ['noise', 'graffiti', 'stray', 'parking', 'paint', 'bench', 'sweeping', 'dust', 'cosmetic'];
+    const isTrivial = trivialKeywords.some(kw => combined.includes(kw));
+    
+    // Tier 2: Routine issues - cap at 3
     const routineKeywords = ['garbage', 'trash', 'waste', 'litter', 'pothole', 'streetlight', 'street light', 
-      'broken light', 'noise', 'park', 'graffiti', 'stray', 'parking', 'sidewalk', 'footpath',
-      'dust', 'sweeping', 'cleaning', 'maintenance'];
-    
+      'broken light', 'park', 'footpath', 'sidewalk', 'dustbin', 'cleaning', 'maintenance',
+      'dumping', 'rubbish', 'recycle', 'collection', 'smell', 'stink', 'dirty', 'unclean'];
     const isRoutine = routineKeywords.some(kw => combined.includes(kw));
     
-    const emergencyKeywords = ['collapse', 'fire', 'burning', 'gas leak', 'explosion', 'electrocution',
-      'live wire', 'exposed wire', 'toxic', 'chemical spill', 'flood', 'trapped', 'sinking', 'fatal'];
+    // Tier 3: Moderate issues - cap at 5
+    const moderateKeywords = ['leak', 'pipe', 'drain', 'blocked', 'clogged', 'overflow', 'road damage',
+      'traffic sign', 'signal', 'waterlog'];
+    const isModerate = moderateKeywords.some(kw => combined.includes(kw));
     
+    // Emergency keywords - only these can go above 5
+    const emergencyKeywords = ['collapse', 'fire', 'burning', 'gas leak', 'explosion', 'electrocution',
+      'live wire', 'exposed wire', 'toxic', 'chemical spill', 'flood', 'trapped', 'sinking', 'fatal',
+      'death', 'dying', 'killed', 'crushed', 'building fall', 'bridge fall'];
     const hasEmergencyKeyword = emergencyKeywords.some(kw => combined.includes(kw));
     
-    if (isRoutine && !hasEmergencyKeyword) {
-      severityScore = Math.min(severityScore, 4);
-      severityBase = Math.min(severityBase, 3);
+    // Apply caps strictly
+    if (!hasEmergencyKeyword) {
+      if (isTrivial) {
+        severityScore = Math.min(severityScore, 2);
+        severityBase = Math.min(severityBase, 1);
+      } else if (isRoutine) {
+        severityScore = Math.min(severityScore, 3);
+        severityBase = Math.min(severityBase, 2);
+      } else if (isModerate) {
+        severityScore = Math.min(severityScore, 5);
+        severityBase = Math.min(severityBase, 3);
+      } else {
+        // Unknown issue type without emergency keywords - default cap at 4
+        severityScore = Math.min(severityScore, 4);
+        severityBase = Math.min(severityBase, 2);
+      }
     }
     
     // Enforce: is_sos must match severity
     const isSos = severityScore >= 7 && hasEmergencyKeyword;
+
+    // Enforce priority consistency
+    let recommendedPriority = result.recommended_priority || "normal";
+    let timeSensitivity = result.time_sensitivity || "low";
+    if (severityScore <= 3) {
+      recommendedPriority = "normal";
+      timeSensitivity = "low";
+    } else if (severityScore <= 5) {
+      if (recommendedPriority === "critical" || recommendedPriority === "urgent") recommendedPriority = "elevated";
+      if (timeSensitivity === "critical") timeSensitivity = "medium";
+    }
 
     const finalResult = {
       is_sos: isSos,
@@ -142,8 +178,8 @@ CRITICAL RULES:
       reasoning: result.reasoning || "Assessment complete",
       risk_factors: isSos ? (result.risk_factors || []) : [],
       estimated_affected_people: result.estimated_affected_people || "few",
-      time_sensitivity: result.time_sensitivity || "low",
-      recommended_priority: result.recommended_priority || "normal",
+      time_sensitivity: timeSensitivity,
+      recommended_priority: recommendedPriority,
     };
 
     console.log("Final severity result:", JSON.stringify(finalResult));
@@ -164,8 +200,8 @@ CRITICAL RULES:
 function defaultResult(reasoning: string) {
   return {
     is_sos: false,
-    severity_score: 3,
-    severity_base: 2,
+    severity_score: 2,
+    severity_base: 1,
     reasoning,
     risk_factors: [],
     estimated_affected_people: "few",
