@@ -279,18 +279,7 @@ const Report = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Language Selection */}
-                <div>
-                  <Label>Language</Label>
-                  <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="hi">Hindi (हिंदी)</SelectItem>
-                      <SelectItem value="te">Telugu (తెలుగు)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
 
                 {/* Title */}
                 <div>
