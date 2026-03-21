@@ -34,7 +34,7 @@ const Report = () => {
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
-  const [language, setLanguage] = useState<'en' | 'hi' | 'te'>('en');
+  
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
 
   useEffect(() => {
