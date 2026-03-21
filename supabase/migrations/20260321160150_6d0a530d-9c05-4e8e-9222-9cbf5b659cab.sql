@@ -1,0 +1,1 @@
+UPDATE public.issues SET severity_score = LEAST(10, COALESCE(severity_base, 3) + CASE WHEN COALESCE(sos_flag, false) THEN 2 ELSE 0 END + FLOOR(COALESCE(validations_count, 0) / 3.0) + LEAST(2, FLOOR(COALESCE(upvotes_count, 0) / 10.0)))
