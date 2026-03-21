@@ -34,7 +34,7 @@ const Report = () => {
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
-  const [language, setLanguage] = useState<'en' | 'hi' | 'te'>('en');
+  
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string | null }[]>([]);
 
   useEffect(() => {
@@ -279,18 +279,7 @@ const Report = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Language Selection */}
-                <div>
-                  <Label>Language</Label>
-                  <Select value={language} onValueChange={(val: any) => setLanguage(val)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="hi">Hindi (हिंदी)</SelectItem>
-                      <SelectItem value="te">Telugu (తెలుగు)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
 
                 {/* Title */}
                 <div>
@@ -310,7 +299,7 @@ const Report = () => {
                     <Label htmlFor="description">Description *</Label>
                     <VoiceRecorder
                       onTranscriptChange={handleVoiceTranscript}
-                      language={language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'te-IN'}
+                      language="en-US"
                     />
                   </div>
                   <Textarea
