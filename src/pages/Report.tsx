@@ -310,7 +310,7 @@ const Report = () => {
                     <Label htmlFor="description">Description *</Label>
                     <VoiceRecorder
                       onTranscriptChange={handleVoiceTranscript}
-                      language={language === 'en' ? 'en-US' : language === 'hi' ? 'hi-IN' : 'te-IN'}
+                      language="en-US"
                     />
                   </div>
                   <Textarea
