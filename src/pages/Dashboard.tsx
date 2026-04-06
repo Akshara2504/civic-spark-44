@@ -567,48 +567,6 @@ const Dashboard = () => {
               );
             })}
 
-            {unassignedIssues.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                <Card
-                  className="glass-card glass-card-dark cursor-pointer hover:shadow-lg transition-all"
-                  onClick={() => setExpandedDept(expandedDept === '__unassigned' ? null : '__unassigned')}
-                >
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                        <Inbox className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-heading font-bold">Uncategorized Issues</h2>
-                        <p className="text-xs text-muted-foreground">Not mapped to any department</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className="bg-destructive/20 text-destructive border-destructive/30 text-sm px-3 py-1">
-                        {unassignedIssues.length}
-                      </Badge>
-                      <ChevronRight className={`w-5 h-5 text-muted-foreground transition-transform ${expandedDept === '__unassigned' ? 'rotate-90' : ''}`} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <AnimatePresence>
-                  {expandedDept === '__unassigned' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="ml-6 mt-3 space-y-2 border-l-2 border-muted pl-4">
-                        {unassignedIssues.map((issue) => (
-                          <IssueRow key={issue.id} issue={issue} getStatusBadge={getStatusBadge} isOfficialUser={isOfficialUser} onStatusChange={handleStatusChange} showAssign officials={officials} onAssign={handleAssignToOfficial} userId={user?.id} />
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            )}
 
             {issues.length === 0 && departments.length === 0 && (
               <Card className="glass-card glass-card-dark p-12 text-center">
