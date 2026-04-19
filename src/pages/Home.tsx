@@ -106,9 +106,9 @@ const Home = () => {
   };
 
   const stats = [
-    { label: t('home.issuesReported'), value: '12.5K+' },
-    { label: t('home.issuesResolved'), value: '8.9K+' },
-    { label: t('home.activeCitizens'), value: '25K+' },
+    { label: t('home.issuesReported'), value: formatStat(liveStats.reported) },
+    { label: t('home.issuesResolved'), value: formatStat(liveStats.resolved) },
+    { label: t('home.activeCitizens'), value: formatStat(liveStats.citizens) },
     { label: t('home.responseTime'), value: '< 24h' }
   ];
 
