@@ -54,16 +54,16 @@ const Report = () => {
       toast.error('Geolocation not supported');
       return;
     }
-    toast.loading('Getting your location...');
+    const loadingId = toast.loading('Getting your location...');
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocationLat(position.coords.latitude);
         setLocationLng(position.coords.longitude);
         setLocationAddress(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
-        toast.success('Location captured');
+        toast.success('Location captured', { id: loadingId });
       },
       (error) => {
-        toast.error('Could not get location: ' + error.message);
+        toast.error('Could not get location: ' + error.message, { id: loadingId });
       }
     );
   };
@@ -148,12 +148,13 @@ const Report = () => {
     }
 
     setIsSubmitting(true);
+    let progressToastId: string | number | undefined;
     
     try {
       // Upload images
       const mediaUrls: string[] = [];
       if (images.length > 0) {
-        toast.loading('Uploading images...');
+        progressToastId = toast.loading('Uploading images...');
         for (const image of images) {
           const fileExt = image.name.split('.').pop();
           const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -169,8 +170,10 @@ const Report = () => {
       }
 
       // Run AI emergency detection
-      toast.loading('AI is analyzing emergency level...');
+      progressToastId = toast.loading('AI is analyzing emergency level...', { id: progressToastId });
       const sosResult = await runAISOSCheck(mediaUrls);
+      toast.dismiss(progressToastId);
+      progressToastId = undefined;
       const isSOS = sosResult.is_sos === true;
       const severityScore = sosResult.severity_score || 3;
       const severityBase = sosResult.severity_base || 3;
@@ -229,6 +232,7 @@ const Report = () => {
       navigate(`/issue/${issue.id}`);
     } catch (error: any) {
       console.error('Error submitting report:', error);
+      if (progressToastId !== undefined) toast.dismiss(progressToastId);
       toast.error('Failed to submit report: ' + error.message);
     } finally {
       setIsSubmitting(false);
