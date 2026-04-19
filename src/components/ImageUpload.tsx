@@ -1,56 +1,94 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ImageUploadProps {
   onImagesChange: (files: File[]) => void;
   maxImages?: number;
 }
 
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 const ImageUpload = ({ onImagesChange, maxImages = 5 }: ImageUploadProps) => {
   const [previews, setPreviews] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [isChecking, setIsChecking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(e.target.files || []);
-    
+    if (e.target) e.target.value = '';
+
     if (files.length + selectedFiles.length > maxImages) {
       toast.error(`Maximum ${maxImages} images allowed`);
       return;
     }
 
-    // Create previews
-    const newPreviews: string[] = [];
-    selectedFiles.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newPreviews.push(reader.result as string);
-          if (newPreviews.length === selectedFiles.length) {
-            setPreviews([...previews, ...newPreviews]);
-          }
-        };
-        reader.readAsDataURL(file);
+    setIsChecking(true);
+    const checkingId = toast.loading('Verifying images are authentic...');
+
+    const accepted: File[] = [];
+    const acceptedPreviews: string[] = [];
+
+    try {
+      for (const file of selectedFiles) {
+        if (!file.type.startsWith('image/')) continue;
+
+        const base64 = await fileToBase64(file);
+
+        const { data, error } = await supabase.functions.invoke('ai-image-check', {
+          body: { imageBase64: base64 },
+        });
+
+        if (error) {
+          console.error('image check failed', error);
+          // fail-open
+          accepted.push(file);
+          acceptedPreviews.push(base64);
+          continue;
+        }
+
+        if (data?.is_ai_generated && data.confidence >= 0.7) {
+          toast.error(
+            `"${file.name}" appears to be AI-generated (${Math.round(data.confidence * 100)}% confidence). Please upload a real photo.`,
+            { duration: 7000 }
+          );
+          continue;
+        }
+
+        accepted.push(file);
+        acceptedPreviews.push(base64);
       }
-    });
 
-    const newFiles = [...files, ...selectedFiles];
-    setFiles(newFiles);
-    onImagesChange(newFiles);
-
-    // TODO: Implement AI image enhancement (auto-crop, auto-contrast)
-    // TODO: Run image classifier to get predicted_category and predicted_confidence
-    // TODO: Generate alt text/caption using image captioning LLM
-    
-    toast.success(`${selectedFiles.length} image(s) added`);
+      if (accepted.length > 0) {
+        const newFiles = [...files, ...accepted];
+        setFiles(newFiles);
+        setPreviews([...previews, ...acceptedPreviews]);
+        onImagesChange(newFiles);
+        toast.success(`${accepted.length} image(s) verified and added`, { id: checkingId });
+      } else {
+        toast.dismiss(checkingId);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Image verification failed', { id: checkingId });
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   const removeImage = (index: number) => {
     const newPreviews = previews.filter((_, i) => i !== index);
     const newFiles = files.filter((_, i) => i !== index);
-    
+
     setPreviews(newPreviews);
     setFiles(newFiles);
     onImagesChange(newFiles);
@@ -63,9 +101,13 @@ const ImageUpload = ({ onImagesChange, maxImages = 5 }: ImageUploadProps) => {
           type="button"
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={files.length >= maxImages}
+          disabled={files.length >= maxImages || isChecking}
         >
-          <Upload className="w-4 h-4 mr-2" />
+          {isChecking ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4 mr-2" />
+          )}
           Upload Images ({files.length}/{maxImages})
         </Button>
         <input
@@ -76,6 +118,11 @@ const ImageUpload = ({ onImagesChange, maxImages = 5 }: ImageUploadProps) => {
           onChange={handleFileSelect}
           className="hidden"
         />
+      </div>
+
+      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+        <ShieldAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+        <span>Images are scanned by AI to detect synthetic/AI-generated content. Please upload genuine photos only.</span>
       </div>
 
       {previews.length > 0 && (
@@ -98,7 +145,6 @@ const ImageUpload = ({ onImagesChange, maxImages = 5 }: ImageUploadProps) => {
               >
                 <X className="w-4 h-4" />
               </Button>
-              {/* TODO: Show AI-generated caption/category here */}
             </div>
           ))}
         </div>
