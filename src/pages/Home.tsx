@@ -4,11 +4,50 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, MessageSquare, Users, TrendingUp, Shield, Zap, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/useTranslation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Home = () => {
   const { user, profile } = useAuth();
   const { t } = useTranslation();
   const isAuthority = profile?.role && profile.role !== 'Citizen';
+  const [liveStats, setLiveStats] = useState({
+    reported: 0,
+    resolved: 0,
+    citizens: 0,
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const [reportedRes, resolvedRes, citizensRes] = await Promise.all([
+        supabase.from('issues').select('*', { count: 'exact', head: true }),
+        supabase.from('issues').select('*', { count: 'exact', head: true }).eq('status', 'Resolved'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      ]);
+      setLiveStats({
+        reported: reportedRes.count ?? 0,
+        resolved: resolvedRes.count ?? 0,
+        citizens: citizensRes.count ?? 0,
+      });
+    };
+
+    fetchStats();
+
+    const channel = supabase
+      .channel('home-stats')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, fetchStats)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const formatStat = (n: number) => {
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K+`;
+    return n.toString();
+  };
 
   const features = [
     {
@@ -67,9 +106,9 @@ const Home = () => {
   };
 
   const stats = [
-    { label: t('home.issuesReported'), value: '12.5K+' },
-    { label: t('home.issuesResolved'), value: '8.9K+' },
-    { label: t('home.activeCitizens'), value: '25K+' },
+    { label: t('home.issuesReported'), value: formatStat(liveStats.reported) },
+    { label: t('home.issuesResolved'), value: formatStat(liveStats.resolved) },
+    { label: t('home.activeCitizens'), value: formatStat(liveStats.citizens) },
     { label: t('home.responseTime'), value: '< 24h' }
   ];
 
