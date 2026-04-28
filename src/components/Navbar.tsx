@@ -32,7 +32,7 @@ export const Navbar = () => {
       ] : []),
       { name: t('nav.authorityHub'), path: '/dashboard' },
     ] : []),
-    { name: 'Analytics', path: '/analytics' },
+    { name: t('nav.analytics'), path: '/analytics' },
     { name: t('nav.about'), path: '/about' },
   ];
 

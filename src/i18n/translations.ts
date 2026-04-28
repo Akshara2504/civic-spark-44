@@ -16,6 +16,7 @@ export const translations: Record<LangCode, Record<string, string>> = {
     'nav.dashboard': 'Dashboard',
     'nav.settings': 'Settings',
     'nav.notifications': 'Notifications',
+    'nav.analytics': 'Analytics',
 
     // Home
     'home.badge': 'Empowering Communities Since 2025',
@@ -115,6 +116,7 @@ export const translations: Record<LangCode, Record<string, string>> = {
     'nav.dashboard': 'डैशबोर्ड',
     'nav.settings': 'सेटिंग्स',
     'nav.notifications': 'सूचनाएं',
+    'nav.analytics': 'विश्लेषण',
 
     // Home
     'home.badge': '2025 से समुदायों को सशक्त बना रहे हैं',
@@ -214,6 +216,7 @@ export const translations: Record<LangCode, Record<string, string>> = {
     'nav.dashboard': 'డాష్‌బోర్డ్',
     'nav.settings': 'సెట్టింగ్‌లు',
     'nav.notifications': 'నోటిఫికేషన్‌లు',
+    'nav.analytics': 'విశ్లేషణలు',
 
     // Home
     'home.badge': '2025 నుండి సమాజాలను సాధికారం చేస్తోంది',
